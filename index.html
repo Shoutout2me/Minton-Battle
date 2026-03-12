@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>민턴 헬퍼 - 배드민턴 대진표</title>
+    
+    <!-- React & ReactDOM (CDN) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS for Animations -->
+    <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInFromBottom { from { transform: translateY(1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideInFromRight { from { transform: translateX(1rem); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .animate-in { animation-duration: 0.4s; animation-fill-mode: both; }
+        .fade-in { animation-name: fadeIn; }
+        .slide-in-from-bottom-4 { animation-name: slideInFromBottom; }
+        .slide-in-from-right-4 { animation-name: slideInFromRight; }
+        .zoom-in { animation-name: fadeIn; transform: scale(0.95); animation-fill-mode: forwards; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans pb-10 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- SVG Icons ---
+        const Icon = ({ size = 24, className = "", children, ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const UserPlus = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></Icon>;
+        const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
+        const Trophy = (p) => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></Icon>;
+        const Trash2 = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Icon>;
+        const Shuffle = (p) => <Icon {...p}><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></Icon>;
+        const Layout = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></Icon>;
+        const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Icon>;
+        const X = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
+        const CheckCircle2 = (p) => <Icon {...p}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
+        const Save = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Icon>;
+        const Loader2 = (p) => <Icon {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></Icon>;
+        const MousePointerClick = (p) => <Icon {...p}><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></Icon>;
+        const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
+        const ChevronRight = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6"/></Icon>;
+        const List = (p) => <Icon {...p}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></Icon>;
+        const HardDrive = (p) => <Icon {...p}><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></Icon>;
+
+        // --- Main App Component ---
+        const App = () => {
+          const [participants, setParticipants] = useState([]);
+          const [inputValue, setInputValue] = useState('');
+          const [teams, setTeams] = useState([]);
+          const [bracket, setBracket] = useState(null);
+          const [view, setView] = useState('input');
+          const [draftTeam, setDraftTeam] = useState([]);
+          const [matchFormat, setMatchFormat] = useState('tournament');
+          const [error, setError] = useState(null);
+          const [success, setSuccess] = useState(null);
+          const [isSaving, setIsSaving] = useState(false);
+          const [isLoading, setIsLoading] = useState(false);
+
+          const LOCAL_STORAGE_KEY = 'badmintonHelperData';
+
+          useEffect(() => {
+            const dataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (dataStr) {
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.participants) setParticipants(data.participants);
+                    if (data.teams) setTeams(data.teams);
+                    if (data.bracket) setBracket(data.bracket);
+                    if (data.draftTeam) setDraftTeam(data.draftTeam);
+                    if (data.matchFormat) setMatchFormat(data.matchFormat);
+                } catch(e) {
+                    console.error("Local storage load error", e);
+                }
+            }
+          }, []);
+
+          const loadFromLocal = () => {
+            setIsLoading(true);
+            setTimeout(() => {
+                try {
+                    const dataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+                    if (dataStr) {
+                        const data = JSON.parse(dataStr);
+                        if (data.participants) setParticipants(data.participants);
+                        if (data.teams) setTeams(data.teams);
+                        if (data.bracket) setBracket(data.bracket);
+                        if (data.draftTeam) setDraftTeam(data.draftTeam);
+                        if (data.matchFormat) setMatchFormat(data.matchFormat);
+                        showSuccess("데이터를 기기에서 성공적으로 불러왔습니다.");
+                    } else {
+                        showError("저장된 데이터가 없습니다.");
+                    }
+                } catch (err) {
+                    showError("불러오는 중 오류가 발생했습니다.");
+                } finally {
+                    setIsLoading(false);
+                }
+            }, 300);
+          };
+
+          const saveToLocal = () => {
+            setIsSaving(true);
+            setTimeout(() => {
+                try {
+                    const data = { participants, teams, bracket, draftTeam, matchFormat, timestamp: new Date().toISOString() };
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+                    showSuccess("데이터가 기기에 안전하게 저장되었습니다.");
+                } catch (err) {
+                    showError("저장 실패: " + err.message);
+                } finally {
+                    setIsSaving(false);
+                }
+            }, 300);
+          };
+
+          const showError = (msg) => { setError(msg); setTimeout(() => setError(null), 3000); };
+          const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 3000); };
+
+          const addParticipants = (e) => {
+            e.preventDefault();
+            if (!inputValue.trim()) return;
+            const newNames = inputValue.split(/\s+/).map(name => name.trim()).filter(name => name !== "");
+            if (newNames.length === 0) return;
+
+            const duplicates = [];
+            const uniqueNewNames = [];
+            newNames.forEach(name => {
+              if (participants.includes(name)) duplicates.push(name);
+              else if (!uniqueNewNames.includes(name)) uniqueNewNames.push(name);
+            });
+
+            if (uniqueNewNames.length > 0) {
+              setParticipants(prev => [...prev, ...uniqueNewNames]);
+              setInputValue('');
+              if (duplicates.length > 0) showSuccess(`${uniqueNewNames.length}명 추가됨 (중복 ${duplicates.length}명 제외)`);
+              else showSuccess(`${uniqueNewNames.length}명이 명단에 추가되었습니다.`);
+            } else if (duplicates.length > 0) {
+              showError("이미 모두 등록된 이름입니다.");
+            }
+          };
+
+          const removeParticipant = (name) => {
+            setParticipants(participants.filter(p => p !== name));
+            setDraftTeam(prev => prev.filter(p => p !== name));
+            setTeams(prev => prev.map(t => ({ ...t, members: t.members.filter(p => p !== name) })).filter(t => t.members.length > 0));
+          };
+
+          const unassignedParticipants = participants.filter(p => !teams.some(t => t.members.includes(p)) && !draftTeam.includes(p));
+
+          const addToDraft = (name) => {
+            const newDraft = [...draftTeam, name];
+            if (newDraft.length === 2) {
+              setTeams([...teams, { id: Date.now(), members: newDraft, name: `Team ${teams.length + 1}` }]);
+              setDraftTeam([]);
+            } else setDraftTeam(newDraft);
+          };
+
+          const removeFromDraft = (name) => setDraftTeam(draftTeam.filter(p => p !== name));
+
+          const confirmSingleTeam = () => {
+            if (draftTeam.length > 0) {
+              setTeams([...teams, { id: Date.now(), members: draftTeam, name: `Team ${teams.length + 1}` }]);
+              setDraftTeam([]);
+            }
+          };
+
+          const disbandTeam = (teamId) => setTeams(teams.filter(t => t.id !== teamId));
+
+          const shuffleAll = () => {
+            if (participants.length < 2) return showError("팀 구성을 위해 최소 2명이 필요합니다.");
+            const shuffled = [...participants].sort(() => Math.random() - 0.5);
+            const newTeams = [];
+            for (let i = 0; i < shuffled.length; i += 2) {
+              newTeams.push({ id: Date.now() + i, members: shuffled.slice(i, i + 2), name: `Team ${newTeams.length + 1}` });
+            }
+            setTeams(newTeams);
+            setDraftTeam([]);
+          };
+
+          const autoFillRemainingTeams = () => {
+            const pool = [...unassignedParticipants, ...draftTeam];
+            if (pool.length === 0) return showError("더 이상 섞을 인원이 없습니다.");
+            const shuffled = [...pool].sort(() => Math.random() - 0.5);
+            const newTeams = [...teams];
+            for (let i = 0; i < shuffled.length; i += 2) {
+              newTeams.push({ id: Date.now() + i, members: shuffled.slice(i, i + 2), name: `Team ${newTeams.length + 1}` });
+            }
+            setTeams(newTeams);
+            setDraftTeam([]);
+          };
+
+          const generateBracket = () => {
+            const source = teams.length > 0 ? teams : [];
+            if (source.length < 2) return showError("대진표를 만들려면 최소 2팀이 필요합니다.");
+            
+            const shuffledSource = [...source].sort(() => Math.random() - 0.5);
+            const firstRound = [];
+            let playingTeams = shuffledSource;
+            let byeTeam = null;
+
+            if (shuffledSource.length % 2 !== 0) byeTeam = playingTeams.pop();
+
+            for (let i = 0; i < playingTeams.length; i += 2) {
+              firstRound.push({ teamA: playingTeams[i], teamB: playingTeams[i+1], winner: null });
+            }
+
+            if (byeTeam) {
+              firstRound.push({ teamA: byeTeam, teamB: { id: 'bye', name: '부전승 (BYE)', members: [] }, winner: 'teamA' });
+            }
+            
+            setMatchFormat('tournament');
+            setBracket([firstRound]);
+            setView('bracket');
+          };
+
+          const generateLeague = () => {
+            const source = teams.length > 0 ? [...teams] : [];
+            if (source.length < 2) return showError("리그전을 진행하려면 최소 2팀이 필요합니다.");
+            
+            const shuffledSource = source.sort(() => Math.random() - 0.5);
+            if (shuffledSource.length % 2 !== 0) shuffledSource.push({ id: 'bye', name: '휴식 (REST)', members: [] });
+
+            const numTeams = shuffledSource.length;
+            const numRounds = numTeams - 1;
+            const half = numTeams / 2;
+            const leagueRounds = [];
+            let currentPositions = [...shuffledSource];
+
+            for (let r = 0; r < numRounds; r++) {
+              const roundMatches = [];
+              for (let i = 0; i < half; i++) {
+                const teamA = currentPositions[i];
+                const teamB = currentPositions[numTeams - 1 - i];
+                let winner = null;
+                if (teamB.id === 'bye' || teamB.name.includes('부전승') || teamB.name.includes('휴식')) winner = 'teamA';
+                if (teamA.id === 'bye' || teamA.name.includes('부전승') || teamA.name.includes('휴식')) winner = 'teamB';
+                roundMatches.push({ teamA, teamB, winner });
+              }
+              leagueRounds.push(roundMatches);
+              currentPositions = [currentPositions[0], currentPositions[numTeams - 1], ...currentPositions.slice(1, numTeams - 1)];
+            }
+            setMatchFormat('league');
+            setBracket(leagueRounds);
+            setView('bracket');
+          };
+
+          const generateNextRound = () => {
+            if (!bracket || bracket.length === 0) return;
+            const lastRound = bracket[bracket.length - 1];
+            const advancingTeams = lastRound.map(match => match[match.winner]);
+            const nextRound = [];
+
+            if (advancingTeams.length % 2 !== 0) {
+              const previousByes = new Set();
+              bracket.forEach(round => {
+                round.forEach(match => {
+                  if (match.teamB?.id === 'bye' || match.teamB?.name.includes('부전승')) previousByes.add(match.teamA.id);
+                  if (match.teamA?.id === 'bye' || match.teamA?.name.includes('부전승')) previousByes.add(match.teamB.id);
+                });
+              });
+
+              let eligibleForBye = advancingTeams.filter(t => !previousByes.has(t.id));
+              if (eligibleForBye.length === 0) eligibleForBye = advancingTeams;
+
+              const byeTeam = eligibleForBye[Math.floor(Math.random() * eligibleForBye.length)];
+              const remainingTeams = advancingTeams.filter(t => t.id !== byeTeam.id).sort(() => Math.random() - 0.5);
+
+              for (let i = 0; i < remainingTeams.length; i += 2) {
+                nextRound.push({ teamA: remainingTeams[i], teamB: remainingTeams[i+1], winner: null });
+              }
+              nextRound.push({ teamA: byeTeam, teamB: { id: 'bye', name: '부전승 (BYE)', members: [] }, winner: 'teamA' });
+
+            } else {
+              const shuffledTeams = advancingTeams.sort(() => Math.random() - 0.5);
+              for (let i = 0; i < shuffledTeams.length; i += 2) {
+                nextRound.push({ teamA: shuffledTeams[i], teamB: shuffledTeams[i+1], winner: null });
+              }
+            }
+            setBracket([...bracket, nextRound]);
+          };
+
+          const handleSetWinner = (roundIndex, matchIndex, teamKey) => {
+            if (matchFormat === 'tournament' && roundIndex !== bracket.length - 1) return showError("이전 라운드의 결과는 수정할 수 없습니다.");
+            
+            const newBracket = [...bracket];
+            const match = newBracket[roundIndex][matchIndex];
+            
+            if (match.teamA.id === 'bye' || match.teamB.id === 'bye' || match.teamA.name.includes('휴식') || match.teamB.name.includes('휴식')) return;
+
+            match.winner = match.winner === teamKey ? null : teamKey;
+            setBracket(newBracket);
+          };
+
+          const getLeagueStandings = () => {
+            if (!teams || teams.length === 0 || !bracket) return [];
+            const stats = {};
+            teams.forEach(t => { stats[t.id] = { ...t, wins: 0, losses: 0, played: 0 }; });
+
+            bracket.forEach(round => {
+              round.forEach(match => {
+                const isBye = match.teamA.id === 'bye' || match.teamB.id === 'bye' || match.teamA.name.includes('휴식') || match.teamB.name.includes('휴식');
+                if (!isBye && match.winner) {
+                  const winnerId = match[match.winner].id;
+                  const loserId = match.winner === 'teamA' ? match.teamB.id : match.teamA.id;
+                  if (stats[winnerId]) { stats[winnerId].wins += 1; stats[winnerId].played += 1; }
+                  if (stats[loserId]) { stats[loserId].losses += 1; stats[loserId].played += 1; }
+                }
+              });
+            });
+            return Object.values(stats).sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+          };
+
+          return (
+            <div>
+              <header className="bg-emerald-600 text-white p-6 shadow-lg sticky top-0 z-10">
+                <div className="max-w-md mx-auto flex justify-between items-center">
+                  <h1 className="text-2xl font-bold flex items-center gap-2"><Trophy className="w-8 h-8" />민턴 헬퍼</h1>
+                  <div className="flex gap-2">
+                    <button onClick={loadFromLocal} disabled={isLoading} className="p-2 rounded-full hover:bg-emerald-500 transition" title="불러오기">
+                        {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
+                    </button>
+                    <button onClick={saveToLocal} disabled={isSaving} className="p-2 rounded-full hover:bg-emerald-500 transition" title="저장하기">
+                        {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                    </button>
+                    <button onClick={() => setView('input')} className={`p-2 rounded-full transition ${view === 'input' ? 'bg-white text-emerald-600' : 'hover:bg-emerald-500'}`} title="명단 보기">
+                        <UserPlus size={20} />
+                    </button>
+                  </div>
+                </div>
+              </header>
+
+              <div className="fixed bottom-6 left-4 right-4 max-w-md mx-auto z-50 flex flex-col gap-2">
+                {error && (
+                  <div className="bg-red-600 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-4">
+                      <div className="flex items-center gap-2"><AlertCircle size={20} /><span className="font-medium text-sm">{error}</span></div>
+                      <button onClick={() => setError(null)}><X size={18} /></button>
+                  </div>
+                )}
+                {success && (
+                  <div className="bg-emerald-700 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between animate-in slide-in-from-bottom-4">
+                      <div className="flex items-center gap-2"><CheckCircle2 size={20} /><span className="font-medium text-sm">{success}</span></div>
+                      <button onClick={() => setSuccess(null)}><X size={18} /></button>
+                  </div>
+                )}
+              </div>
+
+              <main className="max-w-md mx-auto p-4 mt-4">
+                <div className="flex justify-between mb-8 bg-white rounded-xl p-2 shadow-sm border border-slate-200">
+                    {['input', 'teams', 'bracket'].map((v, idx) => (
+                        <button key={v} onClick={() => setView(v)} className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${view === v ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400'}`}>
+                            {idx + 1}. {v === 'input' ? '명단' : v === 'teams' ? '팀빌딩' : '대진표'}
+                        </button>
+                    ))}
+                </div>
+
+                {view === 'input' && (
+                  <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                    <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                      <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-emerald-700"><Users className="text-emerald-600" /> 참가자 명단 ({participants.length}명)</h2>
+                      <p className="text-xs text-slate-400 mb-4">공백(스페이스)으로 구분하여 여러 명을 한 번에 입력하세요.</p>
+                      
+                      <form onSubmit={addParticipants} className="flex gap-2 mb-4">
+                        <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="예: 홍길동 김철수 이영희" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
+                        <button type="submit" className="bg-emerald-600 text-white px-6 rounded-xl font-bold hover:bg-emerald-700 active:scale-95 transition">추가</button>
+                      </form>
+
+                      <div className="flex flex-wrap gap-2">
+                        {participants.map((name) => (
+                          <div key={name} className="bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2 group animate-in zoom-in">
+                            <span className="text-sm font-medium">{name}</span>
+                            <button onClick={() => removeParticipant(name)} className="text-slate-400 hover:text-red-500 transition"><Trash2 size={14} /></button>
+                          </div>
+                        ))}
+                        {participants.length === 0 && <p className="text-slate-400 text-sm italic py-4 w-full text-center">참가자를 등록해주세요.</p>}
+                      </div>
+                    </section>
+
+                    <button onClick={() => setView('teams')} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition shadow-lg">
+                        <Users size={20} /> 다음 단계: 팀 구성하기
+                    </button>
+                  </div>
+                )}
+
+                {view === 'teams' && (
+                  <div className="space-y-6 animate-in slide-in-from-right-4">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                      <h3 className="text-sm font-bold text-slate-700 mb-3 flex justify-between items-center">
+                        <span>대기 명단 ({unassignedParticipants.length}명)</span><span className="text-xs font-normal text-slate-400">클릭하여 팀에 추가</span>
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {unassignedParticipants.map(name => (
+                          <button key={name} onClick={() => addToDraft(name)} className="bg-slate-100 hover:bg-emerald-100 hover:text-emerald-700 px-3 py-1.5 rounded-full text-sm font-medium transition cursor-pointer flex items-center gap-1 shadow-sm">
+                            {name} <UserPlus size={14}/>
+                          </button>
+                        ))}
+                        {unassignedParticipants.length === 0 && <p className="text-xs text-slate-400 w-full text-center py-2">모든 인원이 팀에 배정되었습니다.</p>}
+                      </div>
+                    </div>
+
+                    {(draftTeam.length > 0 || unassignedParticipants.length > 0) && (
+                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-inner">
+                      <h3 className="text-sm font-bold text-emerald-800 mb-3">구성 중인 팀</h3>
+                      <div className="flex gap-2 items-center">
+                        {draftTeam.map(name => (
+                            <button key={name} onClick={() => removeFromDraft(name)} className="bg-emerald-500 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-emerald-600 shadow-sm transition transform hover:scale-105">
+                              {name} <X size={16}/>
+                            </button>
+                        ))}
+                        {draftTeam.length < 2 && (
+                            <div className="border-2 border-dashed border-emerald-300 text-emerald-500/70 px-4 py-3 rounded-xl text-sm font-medium flex-1 text-center bg-white/50">빈 자리 (대기 명단에서 선택)</div>
+                        )}
+                      </div>
+                      {draftTeam.length > 0 && unassignedParticipants.length === 0 && (
+                          <button onClick={confirmSingleTeam} className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm py-2.5 rounded-lg font-bold transition shadow-sm">현재 인원으로 팀 확정</button>
+                      )}
+                    </div>
+                    )}
+
+                    <div className="flex justify-between items-end mb-2 mt-8">
+                        <h2 className="text-xl font-bold">확정된 팀 ({teams.length})</h2>
+                        <div className="flex gap-2">
+                            <button onClick={shuffleAll} className="text-xs text-slate-600 font-semibold flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 transition shadow-sm" title="전체 초기화 후 섞기">
+                                <Shuffle size={14} /> 전체 랜덤
+                            </button>
+                            <button onClick={autoFillRemainingTeams} className="text-xs text-emerald-700 font-semibold flex items-center gap-1 bg-emerald-100 px-2.5 py-1.5 rounded-lg hover:bg-emerald-200 transition shadow-sm" title="남은 명단만 섞기">
+                                <Users size={14} /> 남은 인원 랜덤
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-3">
+                      {teams.map((team, idx) => (
+                        <div key={team.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between group">
+                          <div>
+                            <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider font-mono">TEAM {idx + 1}</span>
+                            <div className="text-lg font-bold text-slate-700">{team.members.join(' & ')}</div>
+                          </div>
+                          <button onClick={() => disbandTeam(team.id)} className="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow-sm"><Trash2 size={18} /></button>
+                        </div>
+                      ))}
+                      {teams.length === 0 && <p className="text-slate-400 text-sm italic py-8 text-center bg-white rounded-xl border border-dashed border-slate-200">아직 확정된 팀이 없습니다.</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                        <button onClick={generateBracket} disabled={teams.length < 2} className={`py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 transition shadow-lg ${teams.length < 2 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+                            <Layout size={20} /><span>토너먼트 시작</span>
+                        </button>
+                        <button onClick={generateLeague} disabled={teams.length < 2} className={`py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-1 transition shadow-lg ${teams.length < 2 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+                            <List size={20} /><span>풀리그전 시작</span>
+                        </button>
+                    </div>
+                  </div>
+                )}
+
+                {view === 'bracket' && (
+                  <div className="space-y-6 animate-in slide-in-from-right-4">
+                    <div className="flex justify-between items-end mb-4">
+                        <h2 className="text-xl font-bold">대진표 ({matchFormat === 'tournament' ? '토너먼트' : '풀리그전'})</h2>
+                        <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg"><MousePointerClick size={14} /> 승자 클릭</div>
+                    </div>
+                    
+                    {matchFormat === 'league' && bracket && bracket.length > 0 && (
+                      <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-slate-200 mb-8 animate-in slide-in-from-bottom-2">
+                        <div className="bg-emerald-600 text-white px-4 py-3 font-bold flex items-center gap-2"><Trophy size={18} /> 실시간 순위표</div>
+                        <div className="p-0 overflow-x-auto">
+                          <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                              <tr>
+                                <th className="px-4 py-2 text-center w-12">순위</th><th className="px-4 py-2">팀명</th><th className="px-4 py-2 text-center">승</th><th className="px-4 py-2 text-center">패</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {getLeagueStandings().map((teamStats, idx) => (
+                                <tr key={teamStats.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
+                                  <td className="px-4 py-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                                  <td className="px-4 py-3 font-semibold text-slate-700">{teamStats.members.length > 0 ? teamStats.members.join(' & ') : teamStats.name}</td>
+                                  <td className="px-4 py-3 text-center font-bold text-emerald-600">{teamStats.wins}</td>
+                                  <td className="px-4 py-3 text-center font-bold text-red-500">{teamStats.losses}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {bracket && bracket.length > 0 ? (
+                      <div className="space-y-8">
+                        {bracket.map((round, rIdx) => {
+                          const isLastRound = matchFormat === 'tournament' ? rIdx === bracket.length - 1 : false;
+                          const allWinnersSelected = round.every(m => m.winner !== null);
+                          const isFinal = matchFormat === 'tournament' && round.length === 1;
+
+                          return (
+                            <div key={rIdx} className="relative">
+                              <div className="flex items-center gap-2 mb-4">
+                                <h3 className="text-lg font-bold text-slate-800">{isFinal ? '결승전 (FINAL)' : `라운드 ${rIdx + 1}`}</h3>
+                                <div className="h-px bg-slate-300 flex-1"></div>
+                              </div>
+
+                              <div className="space-y-4">
+                                {round.map((match, mIdx) => {
+                                  const isByeMatch = match.teamA.id === 'bye' || match.teamB.id === 'bye' || match.teamA.name.includes('휴식') || match.teamB.name.includes('휴식');
+
+                                  if (matchFormat === 'league' && isByeMatch) {
+                                    const playingTeam = match.teamA.id === 'bye' || match.teamA.name.includes('휴식') ? match.teamB : match.teamA;
+                                    return (
+                                      <div key={mIdx} className="bg-slate-50 rounded-2xl border border-dashed border-slate-300 px-4 py-4 flex justify-center items-center text-slate-500 text-sm font-medium shadow-sm">
+                                        ☕ {playingTeam.members.length > 0 ? playingTeam.members.join(' & ') : playingTeam.name} 팀은 이번 라운드 휴식입니다.
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                  <div key={mIdx} className={`bg-white rounded-2xl shadow-md overflow-hidden border ${isLastRound || matchFormat === 'league' ? 'border-emerald-200' : 'border-slate-100 opacity-75'}`}>
+                                    <div className="bg-slate-50 px-4 py-2 border-bottom border-slate-100 text-xs font-bold text-slate-400 flex justify-between">
+                                        <span>MATCH {mIdx + 1}</span><span>{isFinal ? 'CHAMPIONSHIP' : 'DOUBLES'}</span>
+                                    </div>
+                                    <div className="p-4 flex flex-col gap-2 relative">
+                                      <div onClick={() => handleSetWinner(rIdx, mIdx, 'teamA')} className={`p-3 rounded-xl flex justify-between items-center transition-all duration-200 ${match.teamA.id === 'bye' || match.teamA.name.includes('부전승') ? 'bg-slate-50 opacity-60' : (isLastRound || matchFormat === 'league') ? 'cursor-pointer hover:bg-slate-100' : ''} ${match.winner === 'teamA' ? 'bg-emerald-100 ring-2 ring-emerald-400 shadow-sm' : 'bg-slate-50 border border-slate-100'}`}>
+                                        <span className={`font-semibold ${match.winner === 'teamA' ? 'text-emerald-900' : 'text-slate-700'}`}>{match.teamA.members.length > 0 ? match.teamA.members.join(' & ') : match.teamA.name}</span>
+                                        {match.winner === 'teamA' && <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm">WINNER</span>}
+                                      </div>
+                                      
+                                      <div className="flex justify-center items-center py-1">
+                                        <div className="h-px bg-slate-200 flex-1"></div><span className="px-3 text-xs font-bold text-slate-400">VS</span><div className="h-px bg-slate-200 flex-1"></div>
+                                      </div>
+
+                                      <div onClick={() => handleSetWinner(rIdx, mIdx, 'teamB')} className={`p-3 rounded-xl flex justify-between items-center transition-all duration-200 ${match.teamB.id === 'bye' || match.teamB.name.includes('부전승') ? 'bg-slate-50 opacity-60' : (isLastRound || matchFormat === 'league') ? 'cursor-pointer hover:bg-slate-100' : ''} ${match.winner === 'teamB' ? 'bg-emerald-100 ring-2 ring-emerald-400 shadow-sm' : 'bg-slate-50 border border-slate-100'}`}>
+                                        <span className={`font-semibold ${match.winner === 'teamB' ? 'text-emerald-900' : 'text-slate-700'}`}>{match.teamB.members.length > 0 ? match.teamB.members.join(' & ') : match.teamB.name}</span>
+                                        {match.winner === 'teamB' && <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm">WINNER</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                                })}
+                              </div>
+
+                              {matchFormat === 'tournament' && isLastRound && allWinnersSelected && (
+                                <div className="mt-6 animate-in slide-in-from-bottom-4">
+                                  {isFinal ? (
+                                    <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white p-6 rounded-2xl shadow-xl text-center">
+                                      <Trophy className="w-16 h-16 mx-auto mb-2 text-yellow-100" />
+                                      <h3 className="text-lg font-bold text-yellow-50 mb-1">최종 우승팀</h3>
+                                      <p className="text-3xl font-extrabold text-white">{round[0][round[0].winner].members.join(' & ') || round[0][round[0].winner].name}</p>
+                                    </div>
+                                  ) : (
+                                    <button onClick={generateNextRound} className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition shadow-lg">다음 라운드 진행하기 <ChevronRight size={20} /></button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                        <div className="text-center py-10 bg-white rounded-2xl border-2 border-dashed border-slate-200"><p className="text-slate-400">데이터가 없습니다.</p></div>
+                    )}
+                    <button onClick={() => setView('input')} className="w-full border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-100 transition mt-8">처음으로 (명단 수정)</button>
+                  </div>
+                )}
+              </main>
+              
+              <footer className="max-w-md mx-auto px-4 mt-10">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3 items-start">
+                    <div className="bg-emerald-600 text-white p-1 rounded-md mt-1"><Layout size={12} /></div>
+                    <div>
+                        <h4 className="text-sm font-bold text-emerald-900">민턴헬퍼 Tip</h4>
+                        <p className="text-xs text-emerald-700 leading-relaxed font-semibold flex items-center gap-1 mt-1">
+                            <HardDrive size={12} /> 데이터는 브라우저 내부 캐시(Local Storage)에 저장됩니다. 사용하시는 스마트폰이나 PC에서 동일한 브라우저로 접속하면 내역이 유지됩니다!
+                        </p>
+                    </div>
+                </div>
+              </footer>
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
