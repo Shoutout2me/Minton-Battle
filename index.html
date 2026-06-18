@@ -1,912 +1,1002 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>민턴 헬퍼 - 배드민턴 대진표</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #f8fafc; color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding-bottom: 40px; min-height: 100vh; }
-    input:focus, select:focus { outline: 2px solid #059669; outline-offset: 1px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .anim-spin { animation: spin 1s linear infinite; }
-    @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .anim-slideup { animation: slideUp 0.25s ease both; }
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button { opacity: 1; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>민턴 헬퍼 - 배드민턴 대진표</title>
+    
+    <!-- React & ReactDOM (CDN) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+    
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS for Animations -->
+    <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInFromBottom { from { transform: translateY(1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideInFromRight { from { transform: translateX(1rem); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideInFromTop { from { transform: translateY(-1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .animate-in { animation-duration: 0.4s; animation-fill-mode: both; }
+        .fade-in { animation-name: fadeIn; }
+        .slide-in-from-bottom-4 { animation-name: slideInFromBottom; }
+        .slide-in-from-bottom-2 { animation-name: slideInFromBottom; animation-duration: 0.2s; }
+        .slide-in-from-right-4 { animation-name: slideInFromRight; }
+        .slide-in-from-top-2 { animation-name: slideInFromTop; }
+        .zoom-in { animation-name: fadeIn; transform: scale(0.95); animation-fill-mode: forwards; }
+        
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <!-- Babel Configuration to enforce classic runtime and avoid import errors -->
+    <script>
+      Babel.registerPreset('my-preset', {
+        presets: [
+          [Babel.availablePresets['env'], { modules: false }],
+          [Babel.availablePresets['react'], { runtime: 'classic' }]
+        ]
+      });
+    </script>
 </head>
-<body>
-  <div id="root"></div>
+<body class="bg-slate-50 text-slate-900 font-sans pb-10 min-h-screen">
+    <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, Fragment } = React;
+    <script type="text/babel" data-presets="my-preset">
+        const { useState, useEffect, useRef } = React;
 
-    /* ── SVG Icons ───────────────────────────────────────────── */
-    const Ic = ({ size=24, style={}, children, ...p }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size}
-        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-        style={style} {...p}>{children}</svg>
-    );
-    const IUserPlus  = p => <Ic {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></Ic>;
-    const IUsers     = p => <Ic {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Ic>;
-    const ITrophy    = p => <Ic {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></Ic>;
-    const ITrash     = p => <Ic {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Ic>;
-    const IShuffle   = p => <Ic {...p}><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></Ic>;
-    const ILayout    = p => <Ic {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></Ic>;
-    const IAlert     = p => <Ic {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Ic>;
-    const IX         = p => <Ic {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Ic>;
-    const ICheck     = p => <Ic {...p}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></Ic>;
-    const ISave      = p => <Ic {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Ic>;
-    const ILoader    = p => <Ic {...p} style={{...(p.style||{}), animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></Ic>;
-    const IPointer   = p => <Ic {...p}><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></Ic>;
-    const IDownload  = p => <Ic {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Ic>;
-    const IChevron   = p => <Ic {...p}><polyline points="9 18 15 12 9 6"/></Ic>;
-    const IList      = p => <Ic {...p}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></Ic>;
-    const IHdd       = p => <Ic {...p}><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></Ic>;
-    const IGroup     = p => <Ic {...p}><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 1 3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M8 3.13a4 4 0 0 0 0 7.75"/><circle cx="12" cy="7" r="4"/></Ic>;
-    const IUserCog   = p => <Ic {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><circle cx="19" cy="11" r="2"/><path d="M19 8v1"/><path d="M19 13v1"/><path d="M21.6 9.5l-.87.5"/><path d="M17.27 12l-.87.5"/><path d="M21.6 12.5l-.87-.5"/><path d="M17.27 11l-.87-.5"/></Ic>;
-    const IPlus      = p => <Ic {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Ic>;
+        // --- SVG Icons ---
+        const Icon = ({ size = 24, className = "", children, ...props }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const UserPlus = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></Icon>;
+        const Users = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
+        const Trophy = (p) => <Icon {...p}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></Icon>;
+        const Trash2 = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Icon>;
+        const Shuffle = (p) => <Icon {...p}><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></Icon>;
+        const Layout = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></Icon>;
+        const AlertCircle = (p) => <Icon {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Icon>;
+        const X = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
+        const CheckCircle2 = (p) => <Icon {...p}><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
+        const Save = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></Icon>;
+        const Loader2 = (p) => <Icon {...p} className={`${p.className || ""} animate-spin`}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></Icon>;
+        const MousePointerClick = (p) => <Icon {...p}><path d="m9 9 5 12 1.8-5.2L21 14Z"/><path d="M7.2 2.2 8 5.1"/><path d="m5.1 8-2.9-.8"/><path d="M14 4.1 12 6"/><path d="m6 12-1.9 2"/></Icon>;
+        const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
+        const ChevronRight = (p) => <Icon {...p}><polyline points="9 18 15 12 9 6"/></Icon>;
+        const List = (p) => <Icon {...p}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></Icon>;
+        const HardDrive = (p) => <Icon {...p}><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></Icon>;
+        const Group = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-3-3.87"/><path d="M9 21v-2a4 4 0 0 1 3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M8 3.13a4 4 0 0 0 0 7.75"/><circle cx="12" cy="7" r="4"/></Icon>;
+        const UserCog = (p) => <Icon {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><circle cx="19" cy="11" r="2"/><path d="M19 8v1"/><path d="M19 13v1"/><path d="M21.6 9.5l-.87.5"/><path d="M17.27 12l-.87.5"/><path d="M21.6 12.5l-.87-.5"/><path d="M17.27 11l-.87-.5"/></Icon>;
+        const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></Icon>;
 
-    /* ── Shared styles ───────────────────────────────────────── */
-    const S = {
-      card:    { background:'#fff', padding:20, borderRadius:16, border:'1px solid #e2e8f0', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' },
-      primary: { background:'#059669', color:'#fff', border:'none', borderRadius:12, padding:'10px 18px', fontWeight:700, cursor:'pointer', fontSize:14 },
-      dark:    { background:'#1e293b', color:'#fff', border:'none', borderRadius:14, padding:'10px 18px', fontWeight:700, cursor:'pointer', fontSize:14 },
-      small:   { background:'#fff', border:'1.5px solid #e2e8f0', borderRadius:8, padding:'6px 10px', fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:4, color:'#374151' },
-      select:  { flex:1, border:'1.5px solid #d1d5db', borderRadius:10, padding:'8px 10px', fontSize:13, fontWeight:500, color:'#374151', background:'#fff' },
-      icon:    { background:'transparent', border:'none', color:'#fff', cursor:'pointer', padding:6, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center' },
-    };
+        // in-memory storage fallback logic
+        const memStore = {};
+        const storage = {
+          getItem: (k) => {
+            try { return window.localStorage.getItem(k) ?? memStore[k] ?? null; } 
+            catch(e) { return memStore[k] ?? null; }
+          },
+          setItem: (k, v) => { 
+            memStore[k] = v; 
+            try { window.localStorage.setItem(k, v); } 
+            catch(e) {} 
+          },
+        };
 
-    /* ── MatchCard ───────────────────────────────────────────── */
-    function MatchCard({ match, isInteractive, onWinner, onScore, leagueWithScore }) {
-      return (
-        <div style={{ padding:12, display:'flex', flexDirection:'column', gap:6 }}>
-          {['teamA','teamB'].map((tk, ti) => {
-            const team = match[tk];
-            const isWin = match.winner === tk;
-            return (
-              <Fragment key={tk}>
-                {ti===1 && <div style={{textAlign:'center',fontSize:10,fontWeight:800,color:'#94a3b8',padding:'2px 0'}}>VS</div>}
-                <div onClick={()=>{ if(isInteractive) onWinner(tk); }}
-                  style={{ padding:'8px 10px', borderRadius:10, display:'flex', justifyContent:'space-between', alignItems:'center',
-                    cursor:isInteractive?'pointer':'default', transition:'all 0.15s',
-                    background:isWin?'#d1fae5':'#f8fafc', border:isWin?'1.5px solid #6ee7b7':'1.5px solid #e2e8f0' }}>
-                  <span style={{fontSize:13,fontWeight:600,color:isWin?'#064e3b':'#374151'}}>
-                    {team.members.length>0 ? team.members.join(' & ') : team.name}
-                  </span>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    {isWin && <span style={{fontSize:9,background:'#059669',color:'#fff',padding:'2px 7px',borderRadius:999,fontWeight:700}}>WIN</span>}
-                    {leagueWithScore && (
-                      <input type="number" value={match[tk==='teamA'?'scoreA':'scoreB']??''}
-                        onChange={e=>{e.stopPropagation(); onScore(tk==='teamA'?'scoreA':'scoreB', e.target.value);}}
-                        onClick={e=>e.stopPropagation()}
-                        placeholder="0"
-                        style={{width:44,textAlign:'center',border:'1.5px solid #d1d5db',borderRadius:6,padding:'4px 0',fontSize:13,fontWeight:700}} />
-                    )}
-                  </div>
-                </div>
-              </Fragment>
-            );
-          })}
-        </div>
-      );
-    }
+        const STORAGE_KEY = "badmintonHelperData";
 
-    /* ── STORAGE KEY ─────────────────────────────────────────── */
-    const STORAGE_KEY = 'badmintonHelperData_v2';
+        function App() {
+          const [participants, setParticipants] = useState([]);
+          const [inputValue, setInputValue] = useState("");
+          const [teams, setTeams] = useState([]);
+          const [bracket, setBracket] = useState(null);
+          const [view, setView] = useState("input");
+          const [draftTeam, setDraftTeam] = useState([]);
+          const [matchFormat, setMatchFormat] = useState("tournament");
+          const [leagueWithScore, setLeagueWithScore] = useState(false);
+          const [numGroups, setNumGroups] = useState(1);
+          const [groupAssignMode, setGroupAssignMode] = useState("random");
+          const [manualAssignments, setManualAssignments] = useState({});
+          const [isCoachMode, setIsCoachMode] = useState(false);
+          const [coachName, setCoachName] = useState("");
+          const [lessonPartner, setLessonPartner] = useState("");
+          const [lessonOpp1, setLessonOpp1] = useState("");
+          const [lessonOpp2, setLessonOpp2] = useState("");
+          const [error, setError] = useState(null);
+          const [success, setSuccess] = useState(null);
+          const [isSaving, setIsSaving] = useState(false);
+          const [isLoading, setIsLoading] = useState(false);
 
-    /* ── Main App ────────────────────────────────────────────── */
-    function App() {
-      const [participants,  setParticipants]  = useState([]);
-      const [inputValue,    setInputValue]    = useState('');
-      const [teams,         setTeams]         = useState([]);
-      const [bracket,       setBracket]       = useState(null);
-      const [view,          setView]          = useState('input');
-      const [draftTeam,     setDraftTeam]     = useState([]);
-      const [matchFormat,   setMatchFormat]   = useState('tournament');
-      const [leagueWithScore, setLeagueWithScore] = useState(false);
-      const [numGroups,     setNumGroups]     = useState(1);
-      const [groupAssignMode, setGroupAssignMode] = useState('random');
-      const [manualAssignments, setManualAssignments] = useState({});
-      const [isCoachMode,   setIsCoachMode]   = useState(false);
-      const [coachName,     setCoachName]     = useState('');
-      const [lessonPartner, setLessonPartner] = useState('');
-      const [lessonOpp1,    setLessonOpp1]    = useState('');
-      const [lessonOpp2,    setLessonOpp2]    = useState('');
-      const [error,         setError]         = useState(null);
-      const [success,       setSuccess]       = useState(null);
-      const [isSaving,      setIsSaving]      = useState(false);
-      const [isLoading,     setIsLoading]     = useState(false);
+          // load on mount
+          useEffect(() => {
+            try {
+              const raw = storage.getItem(STORAGE_KEY);
+              if (!raw) return;
+              const data = JSON.parse(raw);
+              if (data.participants) setParticipants(data.participants);
+              if (data.teams) setTeams(data.teams);
+              if (data.draftTeam) setDraftTeam(data.draftTeam);
+              if (data.matchFormat) setMatchFormat(data.matchFormat);
+              if (data.leagueWithScore !== undefined) setLeagueWithScore(data.leagueWithScore);
+              if (data.numGroups !== undefined) setNumGroups(data.numGroups);
+              if (data.groupAssignMode) setGroupAssignMode(data.groupAssignMode);
+              if (data.manualAssignments) setManualAssignments(data.manualAssignments);
+              if (data.isCoachMode !== undefined) setIsCoachMode(data.isCoachMode);
+              if (data.coachName) setCoachName(data.coachName);
+              let lb = data.bracket;
+              if (data.matchFormat === "league" && lb && lb.length > 0 && Array.isArray(lb[0])) {
+                lb = [{ groupName: "단일 풀리그", rounds: lb, teams: data.teams }];
+              }
+              if (lb) setBracket(lb);
+            } catch (e) { /* ignore */ }
+          }, []);
 
-      const applyData = (d) => {
-        if (d.participants)            setParticipants(d.participants);
-        if (d.teams)                   setTeams(d.teams);
-        if (d.draftTeam)               setDraftTeam(d.draftTeam);
-        if (d.matchFormat)             setMatchFormat(d.matchFormat);
-        if (d.leagueWithScore != null) setLeagueWithScore(d.leagueWithScore);
-        if (d.numGroups != null)       setNumGroups(d.numGroups);
-        if (d.groupAssignMode)         setGroupAssignMode(d.groupAssignMode);
-        if (d.manualAssignments)       setManualAssignments(d.manualAssignments);
-        if (d.isCoachMode != null)     setIsCoachMode(d.isCoachMode);
-        if (d.coachName)               setCoachName(d.coachName);
-        let lb = d.bracket;
-        if (d.matchFormat==='league' && lb && lb.length>0 && Array.isArray(lb[0]))
-          lb = [{groupName:'단일 풀리그', rounds:lb, teams:d.teams}];
-        if (lb) setBracket(lb);
-      };
+          const showError = (msg) => { setError(msg); setTimeout(() => setError(null), 3000); };
+          const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 3000); };
 
-      useEffect(()=>{
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) applyData(JSON.parse(raw));
-        } catch(e) {}
-      }, []);
+          const saveToLocal = () => {
+            setIsSaving(true);
+            setTimeout(() => {
+              try {
+                storage.setItem(STORAGE_KEY, JSON.stringify({
+                  participants, teams, bracket, draftTeam,
+                  matchFormat, leagueWithScore, numGroups,
+                  groupAssignMode, manualAssignments,
+                  isCoachMode, coachName,
+                  timestamp: new Date().toISOString(),
+                }));
+                showSuccess("세션 내에 저장되었습니다.");
+              } catch (e) { showError("저장 실패: " + e.message); }
+              finally { setIsSaving(false); }
+            }, 300);
+          };
 
-      const showError   = msg => { setError(msg);   setTimeout(()=>setError(null),   3000); };
-      const showSuccess = msg => { setSuccess(msg); setTimeout(()=>setSuccess(null), 3000); };
+          const loadFromLocal = () => {
+            setIsLoading(true);
+            setTimeout(() => {
+              try {
+                const raw = storage.getItem(STORAGE_KEY);
+                if (!raw) { showError("저장된 데이터가 없습니다."); return; }
+                const data = JSON.parse(raw);
+                if (data.participants) setParticipants(data.participants);
+                if (data.teams) setTeams(data.teams);
+                if (data.draftTeam) setDraftTeam(data.draftTeam);
+                if (data.matchFormat) setMatchFormat(data.matchFormat);
+                if (data.leagueWithScore !== undefined) setLeagueWithScore(data.leagueWithScore);
+                if (data.numGroups !== undefined) setNumGroups(data.numGroups);
+                if (data.groupAssignMode) setGroupAssignMode(data.groupAssignMode);
+                if (data.manualAssignments) setManualAssignments(data.manualAssignments);
+                if (data.isCoachMode !== undefined) setIsCoachMode(data.isCoachMode);
+                if (data.coachName) setCoachName(data.coachName);
+                let lb = data.bracket;
+                if (data.matchFormat === "league" && lb && lb.length > 0 && Array.isArray(lb[0])) {
+                  lb = [{ groupName: "단일 풀리그", rounds: lb, teams: data.teams }];
+                }
+                if (lb) setBracket(lb);
+                showSuccess("데이터를 불러왔습니다.");
+              } catch (e) { showError("불러오기 오류: " + e.message); }
+              finally { setIsLoading(false); }
+            }, 300);
+          };
 
-      const saveToLocal = () => {
-        setIsSaving(true);
-        setTimeout(()=>{
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({
-              participants, teams, bracket, draftTeam,
-              matchFormat, leagueWithScore, numGroups,
-              groupAssignMode, manualAssignments,
-              isCoachMode, coachName,
-              timestamp: new Date().toISOString()
-            }));
-            showSuccess('기기에 안전하게 저장되었습니다.');
-          } catch(e) { showError('저장 실패: ' + e.message); }
-          finally { setIsSaving(false); }
-        }, 200);
-      };
-
-      const loadFromLocal = () => {
-        setIsLoading(true);
-        setTimeout(()=>{
-          try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) { showError('저장된 데이터가 없습니다.'); return; }
-            applyData(JSON.parse(raw));
-            showSuccess('데이터를 성공적으로 불러왔습니다.');
-          } catch(e) { showError('불러오기 오류: ' + e.message); }
-          finally { setIsLoading(false); }
-        }, 200);
-      };
-
-      /* ── Participants ────────────────────────────────────── */
-      const addParticipants = () => {
-        if (!inputValue.trim()) return;
-        const names = inputValue.split(/\s+/).map(n=>n.trim()).filter(Boolean);
-        const dups=[], added=[];
-        names.forEach(n=>{ if(participants.includes(n)) dups.push(n); else if(!added.includes(n)) added.push(n); });
-        if (added.length>0) {
-          setParticipants(prev=>[...prev,...added]);
-          setInputValue('');
-          showSuccess(dups.length>0 ? `${added.length}명 추가 (중복 ${dups.length}명 제외)` : `${added.length}명 추가되었습니다.`);
-        } else showError('이미 모두 등록된 이름입니다.');
-      };
-      const removeParticipant = name => {
-        setParticipants(p=>p.filter(x=>x!==name));
-        setDraftTeam(p=>p.filter(x=>x!==name));
-        setTeams(ts=>ts.map(t=>({...t,members:t.members.filter(x=>x!==name)})).filter(t=>t.members.length>0));
-      };
-      const unassigned = participants.filter(p=>!teams.some(t=>t.members.includes(p)) && !draftTeam.includes(p));
-
-      /* ── Draft ───────────────────────────────────────────── */
-      const addToDraft = name => {
-        const nd=[...draftTeam,name];
-        if (nd.length===2) { setTeams(ts=>[...ts,{id:Date.now(),members:nd,name:`Team ${teams.length+1}`}]); setDraftTeam([]); }
-        else setDraftTeam(nd);
-      };
-      const removeFromDraft = name => setDraftTeam(d=>d.filter(x=>x!==name));
-      const confirmSingleTeam = () => {
-        if (draftTeam.length>0) { setTeams(ts=>[...ts,{id:Date.now(),members:draftTeam,name:`Team ${ts.length+1}`}]); setDraftTeam([]); }
-      };
-      const disbandTeam = id => setTeams(ts=>ts.filter(t=>t.id!==id));
-      const shuffleAll = () => {
-        if (participants.length<2) return showError('최소 2명이 필요합니다.');
-        const sh=[...participants].sort(()=>Math.random()-0.5), nt=[];
-        for(let i=0;i<sh.length;i+=2) nt.push({id:Date.now()+i,members:sh.slice(i,i+2),name:`Team ${nt.length+1}`});
-        setTeams(nt); setDraftTeam([]);
-      };
-      const autoFillRemaining = () => {
-        const pool=[...unassigned,...draftTeam];
-        if (!pool.length) return showError('더 이상 섞을 인원이 없습니다.');
-        const sh=[...pool].sort(()=>Math.random()-0.5), nt=[...teams];
-        for(let i=0;i<sh.length;i+=2) nt.push({id:Date.now()+i,members:sh.slice(i,i+2),name:`Team ${nt.length+1}`});
-        setTeams(nt); setDraftTeam([]);
-      };
-
-      /* ── Lesson ──────────────────────────────────────────── */
-      const startManualLesson = () => {
-        if (!coachName.trim()) return showError('코치 이름을 입력해주세요.');
-        setMatchFormat('lesson'); setBracket([{groupName:'코치 레슨 매치',rounds:[],teams:[]}]); setView('bracket');
-      };
-      const generateLesson = () => {
-        if (!coachName.trim()) return showError('코치 이름을 입력해주세요.');
-        if (participants.length<3) return showError('최소 3명의 참가자가 필요합니다.');
-        const sh=[...participants].sort(()=>Math.random()-0.5), n=sh.length, rounds=[];
-        for(let i=0;i<n;i++) {
-          const partner=sh[i], opp1=sh[(i+1)%n], opp2=sh[(i+2)%n];
-          rounds.push([{
-            teamA:{id:`ct_${i}`,name:'코치팀',members:[`👑 ${coachName}`,partner]},
-            teamB:{id:`ot_${i}`,name:'참가자팀',members:[opp1,opp2]},
-            winner:null,scoreA:'',scoreB:''
-          }]);
-        }
-        setMatchFormat('lesson'); setBracket([{groupName:'코치 레슨 매치',rounds,teams:[]}]); setView('bracket');
-      };
-      const addManualLessonMatch = () => {
-        if(!lessonPartner||!lessonOpp1||!lessonOpp2) return showError('모든 선수를 선택해주세요.');
-        if(new Set([lessonPartner,lessonOpp1,lessonOpp2]).size!==3) return showError('중복 선수가 포함되어 있습니다.');
-        const nm=[{
-          teamA:{id:`ct_${Date.now()}`,name:'코치팀',members:[`👑 ${coachName}`,lessonPartner]},
-          teamB:{id:`ot_${Date.now()}`,name:'참가자팀',members:[lessonOpp1,lessonOpp2]},
-          winner:null,scoreA:'',scoreB:''
-        }];
-        const nb=[...bracket]; nb[0].rounds.push(nm); setBracket(nb);
-        setLessonPartner(''); setLessonOpp1(''); setLessonOpp2('');
-        showSuccess('매치가 추가되었습니다.');
-      };
-      const deleteLessonMatch = rIdx => {
-        const nb=[...bracket]; nb[0].rounds.splice(rIdx,1); setBracket(nb);
-      };
-
-      /* ── Tournament ──────────────────────────────────────── */
-      const generateBracket = () => {
-        if(teams.length<2) return showError('최소 2팀이 필요합니다.');
-        const sh=[...teams].sort(()=>Math.random()-0.5);
-        let playing=[...sh], bye=null;
-        if(sh.length%2!==0) bye=playing.pop();
-        const first=[];
-        for(let i=0;i<playing.length;i+=2) first.push({teamA:playing[i],teamB:playing[i+1],winner:null,scoreA:'',scoreB:''});
-        if(bye) first.push({teamA:bye,teamB:{id:'bye',name:'부전승 (BYE)',members:[]},winner:'teamA',scoreA:'',scoreB:''});
-        setMatchFormat('tournament'); setBracket([first]); setView('bracket');
-      };
-      const handleStartLeague = () => {
-        if(teams.length<2) return showError('최소 2팀이 필요합니다.');
-        if(numGroups>1 && teams.length<numGroups*2) return showError(`최소 ${numGroups*2}팀이 필요합니다.`);
-        if(numGroups>1 && groupAssignMode==='manual'){
-          const init={...manualAssignments}; let ci=0;
-          teams.forEach(t=>{ if(init[t.id]==null||init[t.id]>=numGroups){init[t.id]=ci%numGroups;ci++;} });
-          setManualAssignments(init); setView('group_assign');
-        } else generateLeague(false);
-      };
-      const generateLeague = (isManual=false) => {
-        const src=[...teams], groups=Array.from({length:numGroups},()=>[]);
-        if(isManual){
-          src.forEach(t=>{ const g=manualAssignments[t.id]!=null&&manualAssignments[t.id]<numGroups?manualAssignments[t.id]:0; groups[g].push(t); });
-          groups.forEach(g=>g.sort(()=>Math.random()-0.5));
-          if(groups.some(g=>g.length<2)) return showError('모든 조에 최소 2팀 이상 필요합니다.');
-        } else {
-          const sh=src.sort(()=>Math.random()-0.5);
-          sh.forEach((t,i)=>groups[i%numGroups].push(t));
-        }
-        const lb=groups.map((gt,gIdx)=>{
-          const gName=numGroups===1?'단일 풀리그':`${String.fromCharCode(65+gIdx)}조 풀리그`;
-          if(gt.length%2!==0) gt.push({id:`bye_${gIdx}_${Date.now()}`,name:'휴식 (REST)',members:[]});
-          const n=gt.length, half=n/2, lrounds=[]; let pos=[...gt];
-          for(let r=0;r<n-1;r++){
-            const rm=[];
-            for(let i=0;i<half;i++){
-              const tA=pos[i],tB=pos[n-1-i]; let w=null;
-              if(String(tB.id).startsWith('bye')||tB.name.includes('휴식')) w='teamA';
-              if(String(tA.id).startsWith('bye')||tA.name.includes('휴식')) w='teamB';
-              rm.push({teamA:tA,teamB:tB,winner:w,scoreA:'',scoreB:''});
-            }
-            lrounds.push(rm);
-            pos=[pos[0],pos[n-1],...pos.slice(1,n-1)];
-          }
-          return {groupName:gName,rounds:lrounds,teams:gt.filter(t=>!String(t.id).startsWith('bye'))};
-        });
-        setMatchFormat('league'); setBracket(lb); setView('bracket');
-      };
-      const generateNextRound = () => {
-        if(!bracket||!bracket.length) return;
-        const last=bracket[bracket.length-1], adv=last.map(m=>m[m.winner]), next=[];
-        if(adv.length%2!==0){
-          const pB=new Set();
-          bracket.forEach(r=>r.forEach(m=>{
-            if(String(m.teamB&&m.teamB.id).startsWith('bye')||String(m.teamB&&m.teamB.name).includes('부전승')) pB.add(m.teamA.id);
-            if(String(m.teamA&&m.teamA.id).startsWith('bye')||String(m.teamA&&m.teamA.name).includes('부전승')) pB.add(m.teamB.id);
-          }));
-          let elig=adv.filter(t=>!pB.has(t.id)); if(!elig.length) elig=adv;
-          const byeT=elig[Math.floor(Math.random()*elig.length)];
-          const rem=adv.filter(t=>t.id!==byeT.id).sort(()=>Math.random()-0.5);
-          for(let i=0;i<rem.length;i+=2) next.push({teamA:rem[i],teamB:rem[i+1],winner:null,scoreA:'',scoreB:''});
-          next.push({teamA:byeT,teamB:{id:`bye_${Date.now()}`,name:'부전승 (BYE)',members:[]},winner:'teamA',scoreA:'',scoreB:''});
-        } else {
-          const sh=adv.sort(()=>Math.random()-0.5);
-          for(let i=0;i<sh.length;i+=2) next.push({teamA:sh[i],teamB:sh[i+1],winner:null,scoreA:'',scoreB:''});
-        }
-        setBracket([...bracket,next]);
-      };
-
-      /* ── Score / Winner ──────────────────────────────────── */
-      const handleScoreChange = (rIdx,mIdx,key,value,gIdx=null) => {
-        const nb=[...bracket];
-        const m=(matchFormat==='league'||matchFormat==='lesson')?nb[gIdx].rounds[rIdx][mIdx]:nb[rIdx][mIdx];
-        m[key]=value;
-        const sA=parseInt(m.scoreA),sB=parseInt(m.scoreB);
-        if(!isNaN(sA)&&!isNaN(sB)){ if(sA>sB) m.winner='teamA'; else if(sB>sA) m.winner='teamB'; else m.winner=null; }
-        else if(value==='') m.winner=null;
-        setBracket(nb);
-      };
-      const handleSetWinner = (rIdx,mIdx,teamKey,gIdx=null) => {
-        if(matchFormat==='tournament'&&rIdx!==bracket.length-1) return showError('이전 라운드 결과는 수정할 수 없습니다.');
-        const nb=[...bracket];
-        const m=(matchFormat==='league'||matchFormat==='lesson')?nb[gIdx].rounds[rIdx][mIdx]:nb[rIdx][mIdx];
-        if(String(m.teamA.id).startsWith('bye')||String(m.teamB.id).startsWith('bye')||m.teamA.name.includes('휴식')||m.teamB.name.includes('휴식')) return;
-        m.winner=m.winner===teamKey?null:teamKey;
-        setBracket(nb);
-      };
-
-      /* ── Standings ───────────────────────────────────────── */
-      const getLessonStandings = group => {
-        if(!group) return [];
-        const stats={}, cn=`👑 ${coachName}`;
-        stats[cn]={id:cn,name:cn,isCoach:true,scheduled:0,wins:0,losses:0,pointsFor:0,pointsAgainst:0,pointDiff:0};
-        participants.forEach(p=>{ stats[p]={id:p,name:p,isCoach:false,scheduled:0,wins:0,losses:0,pointsFor:0,pointsAgainst:0,pointDiff:0}; });
-        group.rounds.forEach(round=>round.forEach(match=>{
-          [...match.teamA.members,...match.teamB.members].forEach(m=>{ if(stats[m]) stats[m].scheduled++; });
-          if(match.winner){
-            const sA=parseInt(match.scoreA)||0, sB=parseInt(match.scoreB)||0;
-            const proc=(members,isWin,pf,pa)=>members.forEach(m=>{
-              if(!stats[m]) return;
-              if(isWin) stats[m].wins++; else stats[m].losses++;
-              if(leagueWithScore){ stats[m].pointsFor+=pf; stats[m].pointsAgainst+=pa; }
+          // --- participants ---
+          const addParticipants = () => {
+            if (!inputValue.trim()) return;
+            const names = inputValue.split(/\s+/).map(n => n.trim()).filter(Boolean);
+            const dups = [], added = [];
+            names.forEach(n => {
+              if (participants.includes(n)) dups.push(n);
+              else if (!added.includes(n)) added.push(n);
             });
-            if(match.winner==='teamA'){ proc(match.teamA.members,true,sA,sB); proc(match.teamB.members,false,sB,sA); }
-            else { proc(match.teamA.members,false,sA,sB); proc(match.teamB.members,true,sB,sA); }
-          }
-        }));
-        if(leagueWithScore) Object.values(stats).forEach(s=>{ s.pointDiff=s.pointsFor-s.pointsAgainst; });
-        return Object.values(stats).sort((a,b)=>{
-          if(a.isCoach&&!b.isCoach) return -1; if(!a.isCoach&&b.isCoach) return 1;
-          if(b.wins!==a.wins) return b.wins-a.wins;
-          if(leagueWithScore){ if(b.pointDiff!==a.pointDiff) return b.pointDiff-a.pointDiff; if(b.pointsFor!==a.pointsFor) return b.pointsFor-a.pointsFor; }
-          return a.scheduled-b.scheduled;
-        });
-      };
-      const getLeagueStandings = group => {
-        if(!group||!group.teams) return [];
-        const stats={};
-        group.teams.forEach(t=>{ stats[t.id]={...t,wins:0,losses:0,played:0,pointsFor:0,pointsAgainst:0,pointDiff:0}; });
-        group.rounds.forEach(round=>round.forEach(match=>{
-          const isBye=String(match.teamA.id).startsWith('bye')||String(match.teamB.id).startsWith('bye')||match.teamA.name.includes('휴식')||match.teamB.name.includes('휴식');
-          if(!isBye&&match.winner){
-            const wId=match[match.winner].id, lId=match.winner==='teamA'?match.teamB.id:match.teamA.id;
-            const sA=parseInt(match.scoreA)||0, sB=parseInt(match.scoreB)||0;
-            if(stats[wId]){ stats[wId].wins++; stats[wId].played++; if(leagueWithScore){ stats[wId].pointsFor+=match.winner==='teamA'?sA:sB; stats[wId].pointsAgainst+=match.winner==='teamA'?sB:sA; } }
-            if(stats[lId]){ stats[lId].losses++; stats[lId].played++; if(leagueWithScore){ stats[lId].pointsFor+=match.winner==='teamA'?sB:sA; stats[lId].pointsAgainst+=match.winner==='teamA'?sA:sB; } }
-          }
-        }));
-        if(leagueWithScore) Object.values(stats).forEach(s=>{ s.pointDiff=s.pointsFor-s.pointsAgainst; });
-        return Object.values(stats).sort((a,b)=>{
-          if(b.wins!==a.wins) return b.wins-a.wins;
-          if(leagueWithScore){ if(b.pointDiff!==a.pointDiff) return b.pointDiff-a.pointDiff; return b.pointsFor-a.pointsFor; }
-          return a.losses-b.losses;
-        });
-      };
+            if (added.length > 0) {
+              setParticipants(prev => [...prev, ...added]);
+              setInputValue("");
+              if (dups.length > 0) showSuccess(`${added.length}명 추가됨 (중복 ${dups.length}명 제외)`);
+              else showSuccess(`${added.length}명 추가되었습니다.`);
+            } else { showError("이미 모두 등록된 이름입니다."); }
+          };
 
-      /* ── RENDER ──────────────────────────────────────────── */
-      return (
-        <div>
-          {/* Header */}
-          <header style={{background:'#059669',color:'#fff',padding:'14px 20px',position:'sticky',top:0,zIndex:10,boxShadow:'0 2px 8px rgba(0,0,0,0.18)'}}>
-            <div style={{maxWidth:520,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <h1 style={{fontSize:21,fontWeight:800,display:'flex',alignItems:'center',gap:8}}>
-                <ITrophy size={24}/> 민턴 헬퍼
-              </h1>
-              <div style={{display:'flex',gap:6}}>
-                <button onClick={loadFromLocal} disabled={isLoading} style={S.icon} title="불러오기">
-                  {isLoading ? <ILoader size={20}/> : <IDownload size={20}/>}
-                </button>
-                <button onClick={saveToLocal} disabled={isSaving} style={S.icon} title="저장하기">
-                  {isSaving ? <ILoader size={20}/> : <ISave size={20}/>}
-                </button>
-                <button onClick={()=>setView('input')}
-                  style={{...S.icon, background:(view==='input'||view==='group_assign')?'rgba(255,255,255,0.22)':'transparent'}} title="명단">
-                  <IUserPlus size={20}/>
-                </button>
-              </div>
-            </div>
-          </header>
+          const removeParticipant = (name) => {
+            setParticipants(p => p.filter(x => x !== name));
+            setDraftTeam(p => p.filter(x => x !== name));
+            setTeams(ts => ts.map(t => ({ ...t, members: t.members.filter(x => x !== name) })).filter(t => t.members.length > 0));
+          };
 
-          {/* Toast */}
-          <div style={{position:'fixed',bottom:20,left:12,right:12,maxWidth:520,margin:'0 auto',zIndex:99,display:'flex',flexDirection:'column',gap:8,pointerEvents:'none'}}>
-            {error && (
-              <div className="anim-slideup" style={{background:'#dc2626',color:'#fff',padding:'11px 14px',borderRadius:12,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:'0 4px 16px rgba(0,0,0,0.2)',pointerEvents:'all'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}><IAlert size={17}/><span style={{fontSize:13,fontWeight:600}}>{error}</span></div>
-                <button onClick={()=>setError(null)} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',display:'flex'}}><IX size={16}/></button>
-              </div>
-            )}
-            {success && (
-              <div className="anim-slideup" style={{background:'#065f46',color:'#fff',padding:'11px 14px',borderRadius:12,display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:'0 4px 16px rgba(0,0,0,0.2)',pointerEvents:'all'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}><ICheck size={17}/><span style={{fontSize:13,fontWeight:600}}>{success}</span></div>
-                <button onClick={()=>setSuccess(null)} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',display:'flex'}}><IX size={16}/></button>
-              </div>
-            )}
-          </div>
+          const unassigned = participants.filter(p => !teams.some(t => t.members.includes(p)) && !draftTeam.includes(p));
 
-          <main style={{maxWidth:520,margin:'0 auto',padding:'14px 14px 0'}}>
-            {/* Step tabs */}
-            <div style={{display:'flex',background:'#fff',borderRadius:14,padding:5,marginBottom:22,boxShadow:'0 1px 4px rgba(0,0,0,0.07)',border:'1px solid #e2e8f0'}}>
-              {['input','teams','bracket'].map((v,i)=>(
-                <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:'8px 0',fontSize:13,fontWeight:600,borderRadius:10,border:'none',cursor:'pointer',
-                  background:(view===v||(view==='group_assign'&&v==='teams'))?'#d1fae5':'transparent',
-                  color:(view===v||(view==='group_assign'&&v==='teams'))?'#065f46':'#94a3b8'}}>
-                  {i+1}. {v==='input'?'명단':v==='teams'?'팀빌딩':'대진표'}
-                </button>
-              ))}
-            </div>
+          const addToDraft = (name) => {
+            const nd = [...draftTeam, name];
+            if (nd.length === 2) { setTeams(ts => [...ts, { id: Date.now(), members: nd, name: `Team ${teams.length + 1}` }]); setDraftTeam([]); }
+            else setDraftTeam(nd);
+          };
+          const removeFromDraft = (name) => setDraftTeam(d => d.filter(x => x !== name));
+          const confirmSingleTeam = () => {
+            if (draftTeam.length > 0) { setTeams(ts => [...ts, { id: Date.now(), members: draftTeam, name: `Team ${ts.length + 1}` }]); setDraftTeam([]); }
+          };
+          const disbandTeam = (id) => setTeams(ts => ts.filter(t => t.id !== id));
 
-            {/* ── 1. 명단 ── */}
-            {view==='input' && (
-              <div style={{display:'flex',flexDirection:'column',gap:18}}>
-                <section style={S.card}>
-                  <h2 style={{fontSize:16,fontWeight:700,marginBottom:4,display:'flex',alignItems:'center',gap:8,color:'#065f46'}}>
-                    <IUsers size={19}/> 참가자 명단 ({participants.length}명)
-                  </h2>
-                  <p style={{fontSize:11,color:'#94a3b8',marginBottom:14}}>공백으로 구분해 여러 명을 한 번에 입력하세요.</p>
-                  <div style={{display:'flex',gap:8,marginBottom:14}}>
-                    <input value={inputValue} onChange={e=>setInputValue(e.target.value)}
-                      onKeyDown={e=>{if(e.key==='Enter') addParticipants();}}
-                      placeholder="예: 홍길동 김철수 이영희"
-                      style={{flex:1,background:'#f8fafc',border:'1.5px solid #e2e8f0',borderRadius:11,padding:'9px 13px',fontSize:14}} />
-                    <button onClick={addParticipants} style={S.primary}>추가</button>
-                  </div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
-                    {participants.map(name=>(
-                      <div key={name} style={{background:'#f1f5f9',padding:'5px 11px',borderRadius:999,display:'flex',alignItems:'center',gap:7,fontSize:13,fontWeight:500}}>
-                        {name}
-                        <button onClick={()=>removeParticipant(name)} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',display:'flex',padding:0}}><ITrash size={12}/></button>
-                      </div>
-                    ))}
-                    {participants.length===0 && <p style={{color:'#94a3b8',fontSize:13,fontStyle:'italic',width:'100%',textAlign:'center',padding:'14px 0'}}>참가자를 등록해주세요.</p>}
-                  </div>
-                  {/* Coach toggle */}
-                  <div style={{background:'#f8fafc',padding:14,borderRadius:12,border:'1px solid #e2e8f0',marginTop:18}}>
-                    <label style={{display:'flex',alignItems:'center',gap:8,fontWeight:700,cursor:'pointer',fontSize:14}}>
-                      <input type="checkbox" checked={isCoachMode} onChange={e=>setIsCoachMode(e.target.checked)} style={{width:17,height:17,accentColor:'#059669'}} />
-                      <IUserCog size={17} style={{color:'#059669'}}/> 코치 레슨 모드
-                    </label>
-                    {isCoachMode && (
-                      <div style={{paddingLeft:25,marginTop:11}}>
-                        <p style={{fontSize:11,color:'#64748b',marginBottom:7,fontWeight:500}}>코치는 전 경기 출전! 참가자들은 돌아가며 파트너를 맡습니다.</p>
-                        <input type="text" value={coachName} onChange={e=>setCoachName(e.target.value)} placeholder="담당 코치 이름 입력"
-                          style={{width:'100%',background:'#fff',border:'1.5px solid #d1d5db',borderRadius:8,padding:'8px 12px',fontSize:14,fontWeight:700,boxSizing:'border-box'}} />
-                      </div>
-                    )}
-                  </div>
-                </section>
-                <button onClick={()=>setView('teams')} style={{...S.primary,padding:'13px',borderRadius:14,fontSize:15,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-                  {isCoachMode?<IUserCog size={19}/>:<IUsers size={19}/>}
-                  {isCoachMode?'다음: 레슨 설정':'다음: 팀 구성하기'}
-                </button>
-              </div>
-            )}
+          const shuffleAll = () => {
+            if (participants.length < 2) return showError("최소 2명이 필요합니다.");
+            const sh = [...participants].sort(() => Math.random() - 0.5);
+            const nt = [];
+            for (let i = 0; i < sh.length; i += 2) nt.push({ id: Date.now() + i, members: sh.slice(i, i + 2), name: `Team ${nt.length + 1}` });
+            setTeams(nt); setDraftTeam([]);
+          };
 
-            {/* ── 2a. 팀빌딩 (코치) ── */}
-            {view==='teams' && isCoachMode && (
-              <div style={S.card}>
-                <h2 style={{fontSize:17,fontWeight:800,marginBottom:14,display:'flex',alignItems:'center',gap:8,color:'#064e3b'}}>
-                  <IUserCog size={19} style={{color:'#059669'}}/> 레슨 매치 생성
-                </h2>
-                <div style={{background:'#d1fae5',padding:13,borderRadius:11,marginBottom:18,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{fontSize:13,fontWeight:700,color:'#064e3b'}}>담당 코치</span>
-                  <span style={{fontSize:17,fontWeight:800,color:'#059669'}}>👑 {coachName||'(미지정)'}</span>
-                </div>
-                <div style={{marginBottom:18}}>
-                  <div style={{fontSize:13,fontWeight:700,marginBottom:7,color:'#374151'}}>도전자 명단 ({participants.length}명)</div>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                    {participants.map(p=>(
-                      <span key={p} style={{background:'#fff',padding:'4px 11px',borderRadius:8,fontSize:12,fontWeight:500,border:'1px solid #e2e8f0'}}>{p}</span>
-                    ))}
-                  </div>
-                </div>
-                <div style={{borderTop:'1px solid #e2e8f0',paddingTop:14}}>
-                  <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,fontWeight:600,cursor:'pointer',marginBottom:13}}>
-                    <input type="checkbox" checked={leagueWithScore} onChange={e=>setLeagueWithScore(e.target.checked)} style={{width:15,height:15,accentColor:'#059669'}}/>
-                    레슨 점수 기록 (득실차 반영)
-                  </label>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
-                    <button onClick={startManualLesson} style={{...S.dark,display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:13,borderRadius:14}}>
-                      <IUserPlus size={17}/><span style={{fontSize:12}}>수동 매치업 시작</span>
+          const autoFillRemaining = () => {
+            const pool = [...unassigned, ...draftTeam];
+            if (pool.length === 0) return showError("더 이상 섞을 인원이 없습니다.");
+            const sh = [...pool].sort(() => Math.random() - 0.5);
+            const nt = [...teams];
+            for (let i = 0; i < sh.length; i += 2) nt.push({ id: Date.now() + i, members: sh.slice(i, i + 2), name: `Team ${nt.length + 1}` });
+            setTeams(nt); setDraftTeam([]);
+          };
+
+          // --- lesson ---
+          const startManualLesson = () => {
+            if (!coachName.trim()) return showError("코치 이름을 입력해주세요.");
+            setMatchFormat("lesson");
+            setBracket([{ groupName: "코치 레슨 매치", rounds: [], teams: [] }]);
+            setView("bracket");
+          };
+
+          const generateLesson = () => {
+            if (!coachName.trim()) return showError("코치 이름을 입력해주세요.");
+            if (participants.length < 3) return showError("최소 3명의 참가자가 필요합니다.");
+            const sh = [...participants].sort(() => Math.random() - 0.5);
+            const n = sh.length;
+            const rounds = [];
+            for (let i = 0; i < n; i++) {
+              const partner = sh[i], opp1 = sh[(i + 1) % n], opp2 = sh[(i + 2) % n];
+              rounds.push([{
+                teamA: { id: `ct_${i}`, name: "코치팀", members: [`👑 ${coachName}`, partner] },
+                teamB: { id: `ot_${i}`, name: "참가자팀", members: [opp1, opp2] },
+                winner: null, scoreA: "", scoreB: "",
+              }]);
+            }
+            setMatchFormat("lesson");
+            setBracket([{ groupName: "코치 레슨 매치", rounds, teams: [] }]);
+            setView("bracket");
+          };
+
+          const addManualLessonMatch = () => {
+            if (!lessonPartner || !lessonOpp1 || !lessonOpp2) return showError("모든 선수를 선택해주세요.");
+            if (new Set([lessonPartner, lessonOpp1, lessonOpp2]).size !== 3) return showError("중복 선수가 포함되어 있습니다.");
+            const nm = [{
+              teamA: { id: `ct_${Date.now()}`, name: "코치팀", members: [`👑 ${coachName}`, lessonPartner] },
+              teamB: { id: `ot_${Date.now()}`, name: "참가자팀", members: [lessonOpp1, lessonOpp2] },
+              winner: null, scoreA: "", scoreB: "",
+            }];
+            const nb = [...bracket];
+            nb[0].rounds.push(nm);
+            setBracket(nb);
+            setLessonPartner(""); setLessonOpp1(""); setLessonOpp2("");
+            showSuccess("매치가 추가되었습니다.");
+          };
+
+          const deleteLessonMatch = (rIdx) => {
+            const nb = [...bracket];
+            nb[0].rounds.splice(rIdx, 1);
+            setBracket(nb);
+          };
+
+          // --- tournament ---
+          const generateBracket = () => {
+            if (teams.length < 2) return showError("최소 2팀이 필요합니다.");
+            const sh = [...teams].sort(() => Math.random() - 0.5);
+            let playing = [...sh], bye = null;
+            if (sh.length % 2 !== 0) bye = playing.pop();
+            const first = [];
+            for (let i = 0; i < playing.length; i += 2)
+              first.push({ teamA: playing[i], teamB: playing[i + 1], winner: null, scoreA: "", scoreB: "" });
+            if (bye) first.push({ teamA: bye, teamB: { id: "bye", name: "부전승 (BYE)", members: [] }, winner: "teamA", scoreA: "", scoreB: "" });
+            setMatchFormat("tournament"); setBracket([first]); setView("bracket");
+          };
+
+          const handleStartLeague = () => {
+            if (teams.length < 2) return showError("최소 2팀이 필요합니다.");
+            if (numGroups > 1 && teams.length < numGroups * 2) return showError(`최소 ${numGroups * 2}팀이 필요합니다.`);
+            if (numGroups > 1 && groupAssignMode === "manual") {
+              const init = { ...manualAssignments };
+              let ci = 0;
+              teams.forEach(t => { if (init[t.id] === undefined || init[t.id] >= numGroups) { init[t.id] = ci % numGroups; ci++; } });
+              setManualAssignments(init);
+              setView("group_assign");
+            } else { generateLeague(false); }
+          };
+
+          const generateLeague = (isManual = false) => {
+            const src = [...teams];
+            const groups = Array.from({ length: numGroups }, () => []);
+            if (isManual) {
+              src.forEach(t => { const g = manualAssignments[t.id] !== undefined && manualAssignments[t.id] < numGroups ? manualAssignments[t.id] : 0; groups[g].push(t); });
+              groups.forEach(g => g.sort(() => Math.random() - 0.5));
+              if (groups.some(g => g.length < 2)) return showError("모든 조에 최소 2팀 이상 필요합니다.");
+            } else {
+              const sh = src.sort(() => Math.random() - 0.5);
+              sh.forEach((t, i) => groups[i % numGroups].push(t));
+            }
+            const lb = groups.map((gt, gIdx) => {
+              const gName = numGroups === 1 ? "단일 풀리그" : `${String.fromCharCode(65 + gIdx)}조 풀리그`;
+              if (gt.length % 2 !== 0) gt.push({ id: `bye_${gIdx}_${Date.now()}`, name: "휴식 (REST)", members: [] });
+              const n = gt.length, half = n / 2, lrounds = [];
+              let pos = [...gt];
+              for (let r = 0; r < n - 1; r++) {
+                const rm = [];
+                for (let i = 0; i < half; i++) {
+                  const tA = pos[i], tB = pos[n - 1 - i];
+                  let w = null;
+                  if (String(tB.id).startsWith("bye") || tB.name.includes("휴식")) w = "teamA";
+                  if (String(tA.id).startsWith("bye") || tA.name.includes("휴식")) w = "teamB";
+                  rm.push({ teamA: tA, teamB: tB, winner: w, scoreA: "", scoreB: "" });
+                }
+                lrounds.push(rm);
+                pos = [pos[0], pos[n - 1], ...pos.slice(1, n - 1)];
+              }
+              return { groupName: gName, rounds: lrounds, teams: gt.filter(t => !String(t.id).startsWith("bye")) };
+            });
+            setMatchFormat("league"); setBracket(lb); setView("bracket");
+          };
+
+          const generateNextRound = () => {
+            if (!bracket || bracket.length === 0) return;
+            const last = bracket[bracket.length - 1];
+            const adv = last.map(m => m[m.winner]);
+            const next = [];
+            if (adv.length % 2 !== 0) {
+              const prevByes = new Set();
+              bracket.forEach(r => r.forEach(m => {
+                if (String(m.teamB?.id).startsWith("bye") || m.teamB?.name.includes("부전승")) prevByes.add(m.teamA.id);
+                if (String(m.teamA?.id).startsWith("bye") || m.teamA?.name.includes("부전승")) prevByes.add(m.teamB.id);
+              }));
+              let elig = adv.filter(t => !prevByes.has(t.id));
+              if (elig.length === 0) elig = adv;
+              const byeT = elig[Math.floor(Math.random() * elig.length)];
+              const rem = adv.filter(t => t.id !== byeT.id).sort(() => Math.random() - 0.5);
+              for (let i = 0; i < rem.length; i += 2) next.push({ teamA: rem[i], teamB: rem[i + 1], winner: null, scoreA: "", scoreB: "" });
+              next.push({ teamA: byeT, teamB: { id: `bye_${Date.now()}`, name: "부전승 (BYE)", members: [] }, winner: "teamA", scoreA: "", scoreB: "" });
+            } else {
+              const sh = adv.sort(() => Math.random() - 0.5);
+              for (let i = 0; i < sh.length; i += 2) next.push({ teamA: sh[i], teamB: sh[i + 1], winner: null, scoreA: "", scoreB: "" });
+            }
+            setBracket([...bracket, next]);
+          };
+
+          const handleScoreChange = (rIdx, mIdx, key, value, gIdx = null) => {
+            const nb = [...bracket];
+            const m = (matchFormat === "league" || matchFormat === "lesson") ? nb[gIdx].rounds[rIdx][mIdx] : nb[rIdx][mIdx];
+            m[key] = value;
+            const sA = parseInt(m.scoreA), sB = parseInt(m.scoreB);
+            if (!isNaN(sA) && !isNaN(sB)) { if (sA > sB) m.winner = "teamA"; else if (sB > sA) m.winner = "teamB"; else m.winner = null; }
+            else if (value === "") m.winner = null;
+            setBracket(nb);
+          };
+
+          const handleSetWinner = (rIdx, mIdx, teamKey, gIdx = null) => {
+            if (matchFormat === "tournament" && rIdx !== bracket.length - 1) return showError("이전 라운드 결과는 수정할 수 없습니다.");
+            const nb = [...bracket];
+            const m = (matchFormat === "league" || matchFormat === "lesson") ? nb[gIdx].rounds[rIdx][mIdx] : nb[rIdx][mIdx];
+            if (String(m.teamA.id).startsWith("bye") || String(m.teamB.id).startsWith("bye") || m.teamA.name.includes("휴식") || m.teamB.name.includes("휴식")) return;
+            m.winner = m.winner === teamKey ? null : teamKey;
+            setBracket(nb);
+          };
+
+          const getLessonStandings = (group) => {
+            if (!group) return [];
+            const stats = {};
+            const cn = `👑 ${coachName}`;
+            stats[cn] = { id: cn, name: cn, isCoach: true, scheduled: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 };
+            participants.forEach(p => { stats[p] = { id: p, name: p, isCoach: false, scheduled: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 }; });
+            group.rounds.forEach(round => round.forEach(match => {
+              [...match.teamA.members, ...match.teamB.members].forEach(m => { if (stats[m]) stats[m].scheduled++; });
+              if (match.winner) {
+                const sA = parseInt(match.scoreA) || 0, sB = parseInt(match.scoreB) || 0;
+                const proc = (members, isWin, pf, pa) => members.forEach(m => {
+                  if (!stats[m]) return;
+                  if (isWin) stats[m].wins++; else stats[m].losses++;
+                  if (leagueWithScore) { stats[m].pointsFor += pf; stats[m].pointsAgainst += pa; }
+                });
+                if (match.winner === "teamA") { proc(match.teamA.members, true, sA, sB); proc(match.teamB.members, false, sB, sA); }
+                else { proc(match.teamA.members, false, sA, sB); proc(match.teamB.members, true, sB, sA); }
+              }
+            }));
+            if (leagueWithScore) Object.values(stats).forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
+            return Object.values(stats).sort((a, b) => {
+              if (a.isCoach && !b.isCoach) return -1;
+              if (!a.isCoach && b.isCoach) return 1;
+              if (b.wins !== a.wins) return b.wins - a.wins;
+              if (leagueWithScore) { if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff; if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor; }
+              return a.scheduled - b.scheduled;
+            });
+          };
+
+          const getLeagueStandings = (group) => {
+            if (!group?.teams) return [];
+            const stats = {};
+            group.teams.forEach(t => { stats[t.id] = { ...t, wins: 0, losses: 0, played: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 }; });
+            group.rounds.forEach(round => round.forEach(match => {
+              const isBye = String(match.teamA.id).startsWith("bye") || String(match.teamB.id).startsWith("bye") || match.teamA.name.includes("휴식") || match.teamB.name.includes("휴식");
+              if (!isBye && match.winner) {
+                const wId = match[match.winner].id, lId = match.winner === "teamA" ? match.teamB.id : match.teamA.id;
+                const sA = parseInt(match.scoreA) || 0, sB = parseInt(match.scoreB) || 0;
+                if (stats[wId]) { stats[wId].wins++; stats[wId].played++; if (leagueWithScore) { stats[wId].pointsFor += match.winner === "teamA" ? sA : sB; stats[wId].pointsAgainst += match.winner === "teamA" ? sB : sA; } }
+                if (stats[lId]) { stats[lId].losses++; stats[lId].played++; if (leagueWithScore) { stats[lId].pointsFor += match.winner === "teamA" ? sB : sA; stats[lId].pointsAgainst += match.winner === "teamA" ? sA : sB; } }
+              }
+            }));
+            if (leagueWithScore) Object.values(stats).forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
+            return Object.values(stats).sort((a, b) => {
+              if (b.wins !== a.wins) return b.wins - a.wins;
+              if (leagueWithScore) { if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff; return b.pointsFor - a.pointsFor; }
+              return a.losses - b.losses;
+            });
+          };
+
+          // --- RENDER ---
+          return (
+            <div style={{ background: "#f8fafc", minHeight: "100vh", fontFamily: "sans-serif", color: "#0f172a", paddingBottom: 40 }}>
+              {/* Header */}
+              <header style={{ background: "#059669", color: "#fff", padding: "16px 24px", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+                <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Trophy size={26} /> 민턴 헬퍼
+                  </h1>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={loadFromLocal} disabled={isLoading} style={iconBtnStyle} title="불러오기">
+                      {isLoading ? <Loader2 size={20} /> : <Download size={20} />}
                     </button>
-                    <button onClick={generateLesson} style={{...S.primary,display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:13,borderRadius:14}}>
-                      <IShuffle size={17}/><span style={{fontSize:12}}>일정 자동 셔플</span>
+                    <button onClick={saveToLocal} disabled={isSaving} style={iconBtnStyle} title="저장하기">
+                      {isSaving ? <Loader2 size={20} /> : <Save size={20} />}
+                    </button>
+                    <button onClick={() => setView("input")} style={{ ...iconBtnStyle, background: view === "input" || view === "group_assign" ? "rgba(255,255,255,0.25)" : "transparent" }} title="명단">
+                      <UserPlus size={20} />
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              </header>
 
-            {/* ── 2b. 팀빌딩 (일반) ── */}
-            {view==='teams' && !isCoachMode && (
-              <div style={{display:'flex',flexDirection:'column',gap:14}}>
-                <div style={S.card}>
-                  <h3 style={{fontSize:13,fontWeight:700,marginBottom:9,color:'#374151',display:'flex',justifyContent:'space-between'}}>
-                    <span>대기 명단 ({unassigned.length}명)</span>
-                    <span style={{fontWeight:400,color:'#94a3b8',fontSize:11}}>클릭하여 팀에 추가</span>
-                  </h3>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
-                    {unassigned.map(name=>(
-                      <button key={name} onClick={()=>addToDraft(name)} style={{background:'#f1f5f9',border:'none',borderRadius:999,padding:'5px 11px',fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
-                        {name} <IUserPlus size={12}/>
-                      </button>
-                    ))}
-                    {unassigned.length===0 && <p style={{fontSize:12,color:'#94a3b8',width:'100%',textAlign:'center',padding:'7px 0'}}>모든 인원이 배정되었습니다.</p>}
-                  </div>
-                </div>
-                {(draftTeam.length>0||unassigned.length>0) && (
-                  <div style={{background:'#ecfdf5',padding:13,borderRadius:13,border:'1px solid #a7f3d0'}}>
-                    <h3 style={{fontSize:13,fontWeight:700,color:'#065f46',marginBottom:9}}>구성 중인 팀</h3>
-                    <div style={{display:'flex',gap:7,alignItems:'center'}}>
-                      {draftTeam.map(name=>(
-                        <button key={name} onClick={()=>removeFromDraft(name)} style={{background:'#059669',color:'#fff',border:'none',borderRadius:10,padding:'7px 13px',fontSize:13,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
-                          {name} <IX size={13}/>
-                        </button>
-                      ))}
-                      {draftTeam.length<2 && <div style={{border:'2px dashed #6ee7b7',borderRadius:10,padding:'7px 13px',fontSize:12,color:'#6ee7b7',flex:1,textAlign:'center'}}>빈 자리</div>}
-                    </div>
-                    {draftTeam.length>0&&unassigned.length===0 && (
-                      <button onClick={confirmSingleTeam} style={{...S.primary,marginTop:9,fontSize:13,padding:'7px 13px'}}>현재 인원으로 팀 확정</button>
-                    )}
+              {/* Toast messages */}
+              <div style={{ position: "fixed", bottom: 24, left: 16, right: 16, maxWidth: 480, margin: "0 auto", zIndex: 50, display: "flex", flexDirection: "column", gap: 8 }}>
+                {error && (
+                  <div style={{ background: "#dc2626", color: "#fff", padding: "12px 16px", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}><AlertCircle size={18} /><span style={{ fontSize: 14, fontWeight: 600 }}>{error}</span></div>
+                    <button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer" }}><X size={16} /></button>
                   </div>
                 )}
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
-                  <h2 style={{fontSize:17,fontWeight:800}}>확정된 팀 ({teams.length})</h2>
-                  <div style={{display:'flex',gap:5}}>
-                    <button onClick={shuffleAll} style={S.small}><IShuffle size={12}/> 전체 랜덤</button>
-                    <button onClick={autoFillRemaining} style={{...S.small,background:'#d1fae5',color:'#065f46'}}><IUsers size={12}/> 남은 인원 랜덤</button>
+                {success && (
+                  <div style={{ background: "#065f46", color: "#fff", padding: "12px 16px", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}><CheckCircle2 size={18} /><span style={{ fontSize: 14, fontWeight: 600 }}>{success}</span></div>
+                    <button onClick={() => setSuccess(null)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer" }}><X size={16} /></button>
                   </div>
-                </div>
-                <div style={{display:'flex',flexDirection:'column',gap:9}}>
-                  {teams.map((t,i)=>(
-                    <div key={t.id} style={{...S.card,display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 15px'}}>
-                      <div>
-                        <div style={{fontSize:10,fontWeight:700,color:'#059669',letterSpacing:1,marginBottom:2}}>TEAM {i+1}</div>
-                        <div style={{fontSize:15,fontWeight:700}}>{t.members.join(' & ')}</div>
-                      </div>
-                      <button onClick={()=>disbandTeam(t.id)} style={{background:'#f1f5f9',border:'none',borderRadius:999,width:34,height:34,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#94a3b8'}}>
-                        <ITrash size={15}/>
-                      </button>
-                    </div>
-                  ))}
-                  {teams.length===0 && <p style={{textAlign:'center',color:'#94a3b8',fontSize:13,fontStyle:'italic',padding:'26px 0',border:'2px dashed #e2e8f0',borderRadius:13}}>아직 확정된 팀이 없습니다.</p>}
-                </div>
-                <div style={{borderTop:'1px solid #e2e8f0',paddingTop:18,marginTop:6,display:'flex',flexDirection:'column',gap:12}}>
-                  <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,fontWeight:600,cursor:'pointer'}}>
-                    <input type="checkbox" checked={leagueWithScore} onChange={e=>setLeagueWithScore(e.target.checked)} style={{width:15,height:15,accentColor:'#059669'}}/>
-                    리그전 점수 기록 (득실차 반영)
-                  </label>
-                  <div style={{display:'flex',alignItems:'center',gap:9,fontSize:13,fontWeight:600}}>
-                    <span style={{whiteSpace:'nowrap'}}>리그 조 개수:</span>
-                    <select value={numGroups} onChange={e=>setNumGroups(Number(e.target.value))} style={{border:'1.5px solid #d1d5db',borderRadius:8,padding:'5px 9px',fontSize:13,background:'#fff'}}>
-                      <option value={1}>1개 조 (단일)</option>
-                      <option value={2}>2개 조 (A, B)</option>
-                      <option value={3}>3개 조 (A, B, C)</option>
-                      <option value={4}>4개 조 (A-D)</option>
-                    </select>
-                  </div>
-                  {numGroups>1 && (
-                    <div style={{background:'#f1f5f9',padding:11,borderRadius:10,display:'flex',gap:15,alignItems:'center',fontSize:13,fontWeight:600}}>
-                      <span>조 배정:</span>
-                      {['random','manual'].map(m=>(
-                        <label key={m} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}>
-                          <input type="radio" name="assignMode" checked={groupAssignMode===m} onChange={()=>setGroupAssignMode(m)} style={{accentColor:'#059669'}}/>
-                          {m==='random'?'무작위':'수동 지정'}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
-                    <button onClick={generateBracket} disabled={teams.length<2} style={{...S.dark,opacity:teams.length<2?0.4:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:13,borderRadius:14}}>
-                      <ILayout size={17}/><span style={{fontSize:12}}>토너먼트</span>
-                    </button>
-                    <button onClick={handleStartLeague} disabled={teams.length<2} style={{...S.primary,opacity:teams.length<2?0.4:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:13,borderRadius:14}}>
-                      <IList size={17}/><span style={{fontSize:12}}>풀리그전</span>
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
-            )}
 
-            {/* ── 3. 수동 조 배정 ── */}
-            {view==='group_assign' && (
-              <div style={S.card}>
-                <h2 style={{fontSize:15,fontWeight:800,marginBottom:14,display:'flex',alignItems:'center',gap:7}}>
-                  <IGroup size={17} style={{color:'#059669'}}/> 수동 조 배정
-                </h2>
-                <div style={{display:'flex',gap:7,marginBottom:18}}>
-                  {Array.from({length:numGroups}).map((_,gi)=>{
-                    const cnt=Object.values(manualAssignments).filter(v=>v===gi).length;
-                    return (
-                      <div key={gi} style={{flex:1,textAlign:'center',background:'#f8fafc',borderRadius:10,padding:'7px 0',border:'1px solid #e2e8f0'}}>
-                        <div style={{fontSize:10,fontWeight:700,color:'#94a3b8',marginBottom:2}}>{String.fromCharCode(65+gi)}조</div>
-                        <div style={{fontSize:17,fontWeight:800,color:cnt>0?'#059669':'#cbd5e1'}}>{cnt}팀</div>
-                      </div>
-                    );
-                  })}
+              <main style={{ maxWidth: 480, margin: "0 auto", padding: "16px 16px 0" }}>
+                {/* Step tabs */}
+                <div style={{ display: "flex", background: "#fff", borderRadius: 14, padding: 6, marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: "1px solid #e2e8f0" }}>
+                  {["input", "teams", "bracket"].map((v, i) => (
+                    <button key={v} onClick={() => setView(v)}
+                      style={{ flex: 1, padding: "8px 0", fontSize: 13, fontWeight: 600, borderRadius: 10, border: "none", cursor: "pointer", transition: "all 0.2s",
+                        background: (view === v || (view === "group_assign" && v === "teams")) ? "#d1fae5" : "transparent",
+                        color: (view === v || (view === "group_assign" && v === "teams")) ? "#065f46" : "#94a3b8" }}>
+                      {i + 1}. {v === "input" ? "명단" : v === "teams" ? "팀빌딩" : "대진표"}
+                    </button>
+                  ))}
                 </div>
-                <div style={{display:'flex',flexDirection:'column',gap:9,maxHeight:'52vh',overflowY:'auto'}}>
-                  {teams.map((t,i)=>(
-                    <div key={t.id} style={{background:'#f8fafc',borderRadius:11,padding:'9px 11px',border:'1px solid #e2e8f0'}}>
-                      <div style={{fontSize:13,fontWeight:700,marginBottom:7}}>
-                        <span style={{color:'#059669',marginRight:5}}>T{i+1}</span>{t.members.join(' & ')}
+
+                {/* ===== 1. 명단 ===== */}
+                {view === "input" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <section style={cardStyle}>
+                      <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 8, color: "#065f46" }}>
+                        <Users size={20} className="text-emerald-600" /> 참가자 명단 ({participants.length}명)
+                      </h2>
+                      <p style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>공백으로 구분해 여러 명을 한 번에 입력하세요.</p>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                        <input value={inputValue} onChange={e => setInputValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") addParticipants(); }}
+                          placeholder="예: 홍길동 김철수 이영희"
+                          style={{ flex: 1, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 12, padding: "10px 14px", fontSize: 14, outline: "none" }} />
+                        <button onClick={addParticipants} style={primaryBtnStyle}>추가</button>
                       </div>
-                      <div style={{display:'flex',gap:5}}>
-                        {Array.from({length:numGroups}).map((_,gi)=>(
-                          <button key={gi} onClick={()=>setManualAssignments({...manualAssignments,[t.id]:gi})}
-                            style={{flex:1,padding:'5px 0',fontSize:12,fontWeight:700,borderRadius:8,cursor:'pointer',
-                              background:manualAssignments[t.id]===gi?'#059669':'#fff',
-                              color:manualAssignments[t.id]===gi?'#fff':'#64748b',
-                              border:manualAssignments[t.id]===gi?'none':'1.5px solid #e2e8f0'}}>
-                            {String.fromCharCode(65+gi)}조
-                          </button>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {participants.map(name => (
+                          <div key={name} style={{ background: "#f1f5f9", padding: "6px 12px", borderRadius: 999, display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 500 }}>
+                            {name}
+                            <button onClick={() => removeParticipant(name)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex", padding: 0 }}><Trash2 size={13} /></button>
+                          </div>
+                        ))}
+                        {participants.length === 0 && <p style={{ color: "#94a3b8", fontSize: 13, fontStyle: "italic", width: "100%", textAlign: "center", padding: "16px 0" }}>참가자를 등록해주세요.</p>}
+                      </div>
+
+                      {/* Coach mode */}
+                      <div style={{ background: "#f8fafc", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0", marginTop: 20 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, cursor: "pointer", fontSize: 14 }}>
+                          <input type="checkbox" checked={isCoachMode} onChange={e => setIsCoachMode(e.target.checked)} style={{ width: 18, height: 18, accentColor: "#059669" }} />
+                          <UserCog size={18} style={{ color: "#059669" }} /> 코치 레슨 모드
+                        </label>
+                        {isCoachMode && (
+                          <div style={{ paddingLeft: 26, marginTop: 12 }}>
+                            <p style={{ fontSize: 11, color: "#64748b", marginBottom: 8, fontWeight: 500 }}>코치는 전 경기 출전! 참가자들은 돌아가며 공평하게 파트너를 맡습니다.</p>
+                            <input type="text" value={coachName} onChange={e => setCoachName(e.target.value)} placeholder="담당 코치 이름 입력"
+                              style={{ width: "100%", background: "#fff", border: "1.5px solid #d1d5db", borderRadius: 8, padding: "8px 12px", fontSize: 14, fontWeight: 700, outline: "none", boxSizing: "border-box" }} />
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                    <button onClick={() => setView("teams")} style={{ ...primaryBtnStyle, padding: "14px", borderRadius: 14, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                      {isCoachMode ? <UserCog size={20} /> : <Users size={20} />}
+                      {isCoachMode ? "다음: 레슨 설정" : "다음: 팀 구성하기"}
+                    </button>
+                  </div>
+                )}
+
+                {/* ===== 2a. 팀빌딩 - 코치 모드 ===== */}
+                {view === "teams" && isCoachMode && (
+                  <div style={cardStyle}>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "#064e3b" }}>
+                      <UserCog size={20} style={{ color: "#059669" }} /> 레슨 매치 생성
+                    </h2>
+                    <div style={{ background: "#d1fae5", padding: 14, borderRadius: 12, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#064e3b" }}>담당 코치</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: "#059669" }}>👑 {coachName || "(미지정)"}</span>
+                    </div>
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "#374151" }}>도전자 명단 ({participants.length}명)</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {participants.map(p => (
+                          <span key={p} style={{ background: "#fff", padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, border: "1px solid #e2e8f0" }}>{p}</span>
                         ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-                <div style={{display:'flex',gap:9,marginTop:18}}>
-                  <button onClick={()=>setView('teams')} style={{flex:1,padding:'11px 0',borderRadius:11,border:'none',background:'#f1f5f9',fontWeight:700,cursor:'pointer',fontSize:14}}>이전</button>
-                  <button onClick={()=>generateLeague(true)} style={{flex:2,...S.primary,padding:'11px 0',borderRadius:11}}>대진표 확정 생성</button>
-                </div>
-              </div>
-            )}
-
-            {/* ── 4. 대진표 ── */}
-            {view==='bracket' && (
-              <div style={{display:'flex',flexDirection:'column',gap:18}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <h2 style={{fontSize:19,fontWeight:800}}>
-                    {matchFormat==='tournament'?'대진표 (토너먼트)':matchFormat==='lesson'?'일정표 (코치 레슨)':'대진표 (풀리그전)'}
-                  </h2>
-                  <div style={{display:'flex',alignItems:'center',gap:4,fontSize:11,fontWeight:700,color:'#059669',background:'#d1fae5',padding:'4px 9px',borderRadius:8}}>
-                    <IPointer size={12}/> {(matchFormat==='league'||matchFormat==='lesson')&&leagueWithScore?'점수 입력':'승자 클릭'}
-                  </div>
-                </div>
-
-                {/* 레슨 현황판 */}
-                {matchFormat==='lesson' && bracket&&bracket.length>0 && (
-                  <div style={{background:'#fff',borderRadius:15,overflow:'hidden',border:'1.5px solid #c7d2fe',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}>
-                    <div style={{background:'#4f46e5',color:'#fff',padding:'11px 15px',fontWeight:700,display:'flex',alignItems:'center',gap:7}}>
-                      <ITrophy size={15}/> 레슨 참가자 개인별 현황
-                    </div>
-                    <div style={{overflowX:'auto'}}>
-                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
-                        <thead>
-                          <tr style={{background:'#f8fafc',borderBottom:'1px solid #e2e8f0'}}>
-                            {['순위','이름','배정','승','패',...(leagueWithScore?['득점','실점','득실차']:[])].map(h=>(
-                              <th key={h} style={{padding:'7px 7px',fontWeight:700,color:'#64748b',textAlign:'center',whiteSpace:'nowrap'}}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {getLessonStandings(bracket[0]).map((s,i)=>(
-                            <tr key={s.id} style={{borderBottom:'1px solid #f1f5f9',background:s.isCoach?'#fefce8':'transparent'}}>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#94a3b8'}}>{i+1}</td>
-                              <td style={{padding:'9px 7px',fontWeight:600,color:s.isCoach?'#92400e':'#1e293b',whiteSpace:'nowrap'}}>{s.name}</td>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:800,color:'#4f46e5',background:'#eef2ff'}}>{s.scheduled}</td>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#059669'}}>{s.wins}</td>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#dc2626'}}>{s.losses}</td>
-                              {leagueWithScore && <td style={{padding:'9px 7px',textAlign:'center',color:'#64748b',fontSize:12}}>{s.pointsFor}</td>}
-                              {leagueWithScore && <td style={{padding:'9px 7px',textAlign:'center',color:'#64748b',fontSize:12}}>{s.pointsAgainst}</td>}
-                              {leagueWithScore && <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#4f46e5'}}>{s.pointDiff>0?'+'+s.pointDiff:s.pointDiff}</td>}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div style={{background:'#eef2ff',padding:'5px 13px',fontSize:10,color:'#6366f1',fontWeight:600}}>* '배정'은 스케줄 개수입니다.</div>
-                  </div>
-                )}
-
-                {/* 수동 레슨 매치 추가 */}
-                {matchFormat==='lesson' && bracket&&bracket.length>0 && (
-                  <div style={{...S.card,border:'1.5px solid #a7f3d0'}}>
-                    <h3 style={{fontSize:13,fontWeight:700,color:'#065f46',marginBottom:11,display:'flex',alignItems:'center',gap:5}}>
-                      <IPlus size={14}/> 새 매치 수동 추가
-                    </h3>
-                    <div style={{display:'flex',flexDirection:'column',gap:9}}>
-                      <div style={{display:'flex',gap:7,alignItems:'center'}}>
-                        <div style={{flex:1,background:'#d1fae5',borderRadius:9,padding:'7px 9px',textAlign:'center',fontSize:13,fontWeight:700,color:'#065f46'}}>👑 코치</div>
-                        <span style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>&amp;</span>
-                        <select value={lessonPartner} onChange={e=>setLessonPartner(e.target.value)} style={S.select}>
-                          <option value="" disabled>파트너 선택</option>
-                          {participants.map(p=><option key={p} value={p}>{p}</option>)}
-                        </select>
+                    <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 16 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}>
+                        <input type="checkbox" checked={leagueWithScore} onChange={e => setLeagueWithScore(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#059669" }} />
+                        레슨 점수 기록 (득실차 반영)
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <button onClick={startManualLesson} style={{ ...darkBtnStyle, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 14 }}>
+                          <UserPlus size={18} /><span style={{ fontSize: 13 }}>수동 매치업 시작</span>
+                        </button>
+                        <button onClick={generateLesson} style={{ ...primaryBtnStyle, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 14, borderRadius: 14 }}>
+                          <Shuffle size={18} /><span style={{ fontSize: 13 }}>일정 자동 셔플</span>
+                        </button>
                       </div>
-                      <div style={{textAlign:'center',fontSize:11,fontWeight:800,color:'#94a3b8'}}>VS</div>
-                      <div style={{display:'flex',gap:7,alignItems:'center'}}>
-                        <select value={lessonOpp1} onChange={e=>setLessonOpp1(e.target.value)} style={S.select}>
-                          <option value="" disabled>도전자 1</option>
-                          {participants.map(p=><option key={p} value={p}>{p}</option>)}
-                        </select>
-                        <span style={{fontSize:11,fontWeight:700,color:'#94a3b8'}}>&amp;</span>
-                        <select value={lessonOpp2} onChange={e=>setLessonOpp2(e.target.value)} style={S.select}>
-                          <option value="" disabled>도전자 2</option>
-                          {participants.map(p=><option key={p} value={p}>{p}</option>)}
-                        </select>
-                      </div>
-                      <button onClick={addManualLessonMatch} style={{...S.dark,display:'flex',justifyContent:'center',alignItems:'center',gap:5,padding:'9px 0',marginTop:3,borderRadius:11}}>
-                        <IPlus size={14}/> 이 매치 추가하기
-                      </button>
                     </div>
                   </div>
                 )}
 
-                {/* 리그 순위표 + 라운드 */}
-                {matchFormat==='league' && bracket&&bracket.length>0 && bracket.map((group,gIdx)=>(
-                  <div key={gIdx} style={{background:'#fff',borderRadius:15,overflow:'hidden',border:'1px solid #e2e8f0',boxShadow:'0 2px 6px rgba(0,0,0,0.05)'}}>
-                    <div style={{background:'#059669',color:'#fff',padding:'11px 15px',fontWeight:700,display:'flex',alignItems:'center',gap:7}}>
-                      <ITrophy size={15}/> {group.groupName} 순위
+                {/* ===== 2b. 팀빌딩 - 일반 모드 ===== */}
+                {view === "teams" && !isCoachMode && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {/* 대기 명단 */}
+                    <div style={cardStyle}>
+                      <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: "#374151", display: "flex", justifyContent: "space-between" }}>
+                        <span>대기 명단 ({unassigned.length}명)</span>
+                        <span style={{ fontWeight: 400, color: "#94a3b8", fontSize: 12 }}>클릭하여 팀에 추가</span>
+                      </h3>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {unassigned.map(name => (
+                          <button key={name} onClick={() => addToDraft(name)} style={{ background: "#f1f5f9", border: "none", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                            {name} <UserPlus size={13} />
+                          </button>
+                        ))}
+                        {unassigned.length === 0 && <p style={{ fontSize: 12, color: "#94a3b8", width: "100%", textAlign: "center", padding: "8px 0" }}>모든 인원이 배정되었습니다.</p>}
+                      </div>
                     </div>
-                    <div style={{overflowX:'auto'}}>
-                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
-                        <thead>
-                          <tr style={{background:'#f8fafc',borderBottom:'1px solid #e2e8f0'}}>
-                            {['순위','팀명','승','패',...(leagueWithScore?['득점','실점','득실차']:[])].map(h=>(
-                              <th key={h} style={{padding:'7px',fontWeight:700,color:'#64748b',textAlign:'center'}}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {getLeagueStandings(group).map((ts,i)=>(
-                            <tr key={ts.id} style={{borderBottom:'1px solid #f1f5f9'}}>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#94a3b8'}}>{i+1}</td>
-                              <td style={{padding:'9px 7px',fontWeight:600,color:'#1e293b'}}>{ts.members.length>0?ts.members.join(' & '):ts.name}</td>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#059669'}}>{ts.wins}</td>
-                              <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#dc2626'}}>{ts.losses}</td>
-                              {leagueWithScore && <td style={{padding:'9px 7px',textAlign:'center',color:'#64748b',fontSize:12}}>{ts.pointsFor}</td>}
-                              {leagueWithScore && <td style={{padding:'9px 7px',textAlign:'center',color:'#64748b',fontSize:12}}>{ts.pointsAgainst}</td>}
-                              {leagueWithScore && <td style={{padding:'9px 7px',textAlign:'center',fontWeight:700,color:'#059669'}}>{ts.pointDiff>0?'+'+ts.pointDiff:ts.pointDiff}</td>}
-                            </tr>
+
+                    {/* Draft */}
+                    {(draftTeam.length > 0 || unassigned.length > 0) && (
+                      <div style={{ background: "#ecfdf5", padding: 14, borderRadius: 14, border: "1px solid #a7f3d0" }}>
+                        <h3 style={{ fontSize: 13, fontWeight: 700, color: "#065f46", marginBottom: 10 }}>구성 중인 팀</h3>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          {draftTeam.map(name => (
+                            <button key={name} onClick={() => removeFromDraft(name)} style={{ background: "#059669", color: "#fff", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              {name} <X size={14} />
+                            </button>
                           ))}
-                        </tbody>
-                      </table>
+                          {draftTeam.length < 2 && (
+                            <div style={{ border: "2px dashed #6ee7b7", borderRadius: 10, padding: "8px 14px", fontSize: 12, color: "#6ee7b7", flex: 1, textAlign: "center" }}>빈 자리</div>
+                          )}
+                        </div>
+                        {draftTeam.length > 0 && unassigned.length === 0 && (
+                          <button onClick={confirmSingleTeam} style={{ ...primaryBtnStyle, marginTop: 10, fontSize: 13, padding: "8px 14px" }}>현재 인원으로 팀 확정</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 확정된 팀 */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                      <h2 style={{ fontSize: 18, fontWeight: 800 }}>확정된 팀 ({teams.length})</h2>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={shuffleAll} style={smallBtnStyle}><Shuffle size={13} /> 전체 랜덤</button>
+                        <button onClick={autoFillRemaining} style={{ ...smallBtnStyle, background: "#d1fae5", color: "#065f46" }}><Users size={13} /> 남은 인원 랜덤</button>
+                      </div>
                     </div>
-                    <div style={{padding:14,background:'#f8fafc',borderTop:'1px solid #e2e8f0'}}>
-                      {group.rounds.map((round,rIdx)=>(
-                        <div key={rIdx} style={{marginBottom:18}}>
-                          <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:9}}>
-                            <span style={{fontSize:12,fontWeight:700,color:'#475569'}}>라운드 {rIdx+1}</span>
-                            <div style={{flex:1,height:1,background:'#e2e8f0'}}/>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {teams.map((t, i) => (
+                        <div key={t.id} style={{ ...cardStyle, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px" }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#059669", letterSpacing: 1, marginBottom: 2 }}>TEAM {i + 1}</div>
+                            <div style={{ fontSize: 16, fontWeight: 700 }}>{t.members.join(" & ")}</div>
                           </div>
-                          <div style={{display:'flex',flexDirection:'column',gap:9}}>
-                            {round.map((match,mIdx)=>{
-                              const isBye=String(match.teamA.id).startsWith('bye')||String(match.teamB.id).startsWith('bye')||match.teamA.name.includes('휴식')||match.teamB.name.includes('휴식');
-                              if(isBye){
-                                const pt=match.teamA.name.includes('휴식')||String(match.teamA.id).startsWith('bye')?match.teamB:match.teamA;
-                                return <div key={mIdx} style={{border:'2px dashed #e2e8f0',borderRadius:11,padding:'9px 13px',textAlign:'center',color:'#94a3b8',fontSize:12}}>☕ {pt.members.length>0?pt.members.join(' & '):pt.name} 팀 휴식</div>;
-                              }
-                              return <MatchCard key={mIdx} match={match} isInteractive={!leagueWithScore}
-                                onWinner={tk=>handleSetWinner(rIdx,mIdx,tk,gIdx)}
-                                onScore={(k,v)=>handleScoreChange(rIdx,mIdx,k,v,gIdx)}
-                                leagueWithScore={leagueWithScore}/>;
-                            })}
+                          <button onClick={() => disbandTeam(t.id)} style={{ background: "#f1f5f9", border: "none", borderRadius: 999, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      {teams.length === 0 && <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic", padding: "28px 0", border: "2px dashed #e2e8f0", borderRadius: 14 }}>아직 확정된 팀이 없습니다.</p>}
+                    </div>
+
+                    {/* 리그 옵션 */}
+                    <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 20, marginTop: 8, display: "flex", flexDirection: "column", gap: 14 }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                        <input type="checkbox" checked={leagueWithScore} onChange={e => setLeagueWithScore(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#059669" }} />
+                        리그전 점수 기록 (득실차 반영)
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 600 }}>
+                        <span style={{ whiteSpace: "nowrap" }}>리그 조 개수:</span>
+                        <select value={numGroups} onChange={e => setNumGroups(Number(e.target.value))} style={{ border: "1.5px solid #d1d5db", borderRadius: 8, padding: "6px 10px", outline: "none", fontSize: 13, background: "#fff" }}>
+                          <option value={1}>1개 조 (단일)</option>
+                          <option value={2}>2개 조 (A, B)</option>
+                          <option value={3}>3개 조 (A, B, C)</option>
+                          <option value={4}>4개 조 (A-D)</option>
+                        </select>
+                      </div>
+                      {numGroups > 1 && (
+                        <div style={{ background: "#f1f5f9", padding: 12, borderRadius: 10, display: "flex", gap: 16, alignItems: "center", fontSize: 13, fontWeight: 600 }}>
+                          <span>조 배정:</span>
+                          {["random", "manual"].map(m => (
+                            <label key={m} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                              <input type="radio" name="assignMode" checked={groupAssignMode === m} onChange={() => setGroupAssignMode(m)} style={{ accentColor: "#059669" }} />
+                              {m === "random" ? "무작위" : "수동 지정"}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <button onClick={generateBracket} disabled={teams.length < 2} style={{ ...darkBtnStyle, opacity: teams.length < 2 ? 0.4 : 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 14 }}>
+                          <Layout size={18} /><span style={{ fontSize: 13 }}>토너먼트</span>
+                        </button>
+                        <button onClick={handleStartLeague} disabled={teams.length < 2} style={{ ...primaryBtnStyle, opacity: teams.length < 2 ? 0.4 : 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 14, borderRadius: 14 }}>
+                          <List size={18} /><span style={{ fontSize: 13 }}>풀리그전</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ===== 3. 수동 조 배정 ===== */}
+                {view === "group_assign" && (
+                  <div style={cardStyle}>
+                    <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                      <Group size={18} style={{ color: "#059669" }} /> 수동 조 배정
+                    </h2>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                      {Array.from({ length: numGroups }).map((_, gi) => {
+                        const cnt = Object.values(manualAssignments).filter(v => v === gi).length;
+                        return (
+                          <div key={gi} style={{ flex: 1, textAlign: "center", background: "#f8fafc", borderRadius: 10, padding: "8px 0", border: "1px solid #e2e8f0" }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 2 }}>{String.fromCharCode(65 + gi)}조</div>
+                            <div style={{ fontSize: 18, fontWeight: 800, color: cnt > 0 ? "#059669" : "#cbd5e1" }}>{cnt}팀</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: "50vh", overflowY: "auto" }}>
+                      {teams.map((t, i) => (
+                        <div key={t.id} style={{ background: "#f8fafc", borderRadius: 12, padding: "10px 12px", border: "1px solid #e2e8f0" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                            <span style={{ color: "#059669", marginRight: 6 }}>T{i + 1}</span>{t.members.join(" & ")}
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {Array.from({ length: numGroups }).map((_, gi) => (
+                              <button key={gi} onClick={() => setManualAssignments({ ...manualAssignments, [t.id]: gi })}
+                                style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
+                                  background: manualAssignments[t.id] === gi ? "#059669" : "#fff",
+                                  color: manualAssignments[t.id] === gi ? "#fff" : "#64748b",
+                                  border: manualAssignments[t.id] === gi ? "none" : "1.5px solid #e2e8f0" }}>
+                                {String.fromCharCode(65 + gi)}조
+                              </button>
+                            ))}
                           </div>
                         </div>
                       ))}
                     </div>
+                    <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                      <button onClick={() => setView("teams")} style={{ flex: 1, padding: "12px 0", borderRadius: 12, border: "none", background: "#f1f5f9", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>이전</button>
+                      <button onClick={() => generateLeague(true)} style={{ flex: 2, ...primaryBtnStyle, padding: "12px 0", borderRadius: 12 }}>대진표 확정 생성</button>
+                    </div>
                   </div>
-                ))}
+                )}
 
-                {/* 레슨 매치 리스트 */}
-                {matchFormat==='lesson' && bracket&&bracket.length>0 && (
-                  <div style={{background:'#f8fafc',padding:14,borderRadius:15,border:'1px solid #e2e8f0'}}>
-                    {bracket[0].rounds.length===0 && <p style={{textAlign:'center',color:'#94a3b8',fontSize:13,padding:'14px 0'}}>아직 배정된 매치가 없습니다.</p>}
-                    {bracket[0].rounds.map((round,rIdx)=>{
-                      const match=round[0];
-                      return (
-                        <div key={rIdx} style={{background:'#fff',borderRadius:13,border:'1px solid #a7f3d0',marginBottom:13,overflow:'hidden'}}>
-                          <div style={{background:'#ecfdf5',padding:'5px 11px',borderBottom:'1px solid #a7f3d0',fontSize:10,fontWeight:700,color:'#059669',display:'flex',justifyContent:'space-between'}}>
-                            <span>MATCH {rIdx+1}</span>
-                            <button onClick={()=>deleteLessonMatch(rIdx)} style={{background:'none',border:'none',cursor:'pointer',color:'#94a3b8',display:'flex'}}><ITrash size={12}/></button>
+                {/* ===== 4. 대진표 ===== */}
+                {view === "bracket" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h2 style={{ fontSize: 20, fontWeight: 800 }}>
+                        {matchFormat === "tournament" ? "대진표 (토너먼트)" : matchFormat === "lesson" ? "일정표 (코치 레슨)" : "대진표 (풀리그전)"}
+                      </h2>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "#059669", background: "#d1fae5", padding: "4px 10px", borderRadius: 8 }}>
+                        <MousePointerClick size={13} /> {(matchFormat === "league" || matchFormat === "lesson") && leagueWithScore ? "점수 입력" : "승자 클릭"}
+                      </div>
+                    </div>
+
+                    {/* 레슨 현황판 */}
+                    {matchFormat === "lesson" && bracket?.length > 0 && (
+                      <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1.5px solid #c7d2fe", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+                        <div style={{ background: "#4f46e5", color: "#fff", padding: "12px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                          <Trophy size={16} /> 레슨 참가자 개인별 현황
+                        </div>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                            <thead>
+                              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                                {["순위","이름","배정","승","패",...(leagueWithScore?["득점","실점","득실차"]:[])].map(h => (
+                                  <th key={h} style={{ padding: "8px 8px", fontWeight: 700, color: "#64748b", textAlign: "center", whiteSpace: "nowrap" }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {getLessonStandings(bracket[0]).map((s, i) => (
+                                <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9", background: s.isCoach ? "#fefce8" : "transparent" }}>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#94a3b8" }}>{i + 1}</td>
+                                  <td style={{ padding: "10px 8px", fontWeight: 600, color: s.isCoach ? "#92400e" : "#1e293b", whiteSpace: "nowrap" }}>{s.name}</td>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 800, color: "#4f46e5", background: "#eef2ff" }}>{s.scheduled}</td>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{s.wins}</td>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{s.losses}</td>
+                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{s.pointsFor}</td>}
+                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{s.pointsAgainst}</td>}
+                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#4f46e5" }}>{s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}</td>}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div style={{ background: "#eef2ff", padding: "6px 14px", fontSize: 11, color: "#6366f1", fontWeight: 600 }}>* '배정'은 스케줄 개수입니다.</div>
+                      </div>
+                    )}
+
+                    {/* 수동 매치 추가 UI (레슨) */}
+                    {matchFormat === "lesson" && bracket?.length > 0 && (
+                      <div style={{ ...cardStyle, border: "1.5px solid #a7f3d0" }}>
+                        <h3 style={{ fontSize: 13, fontWeight: 700, color: "#065f46", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Plus size={15} /> 새 매치 수동 추가
+                        </h3>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <div style={{ flex: 1, background: "#d1fae5", borderRadius: 10, padding: "8px 10px", textAlign: "center", fontSize: 13, fontWeight: 700, color: "#065f46" }}>👑 코치</div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>&</span>
+                            <select value={lessonPartner} onChange={e => setLessonPartner(e.target.value)} style={selectStyle}>
+                              <option value="" disabled>파트너 선택</option>
+                              {participants.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
                           </div>
-                          <MatchCard match={match} isInteractive={!leagueWithScore}
-                            onWinner={tk=>handleSetWinner(rIdx,0,tk,0)}
-                            onScore={(k,v)=>handleScoreChange(rIdx,0,k,v,0)}
-                            leagueWithScore={leagueWithScore}/>
+                          <div style={{ textAlign: "center", fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>VS</div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <select value={lessonOpp1} onChange={e => setLessonOpp1(e.target.value)} style={selectStyle}>
+                              <option value="" disabled>도전자 1</option>
+                              {participants.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>&</span>
+                            <select value={lessonOpp2} onChange={e => setLessonOpp2(e.target.value)} style={selectStyle}>
+                              <option value="" disabled>도전자 2</option>
+                              {participants.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </div>
+                          <button onClick={addManualLessonMatch} style={{ ...darkBtnStyle, display: "flex", justifyContent: "center", alignItems: "center", gap: 6, padding: "10px 0", marginTop: 4 }}>
+                            <Plus size={15} /> 이 매치 추가하기
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 리그 순위표 */}
+                    {matchFormat === "league" && bracket?.length > 0 && bracket.map((group, gIdx) => (
+                      <div key={gIdx} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                        <div style={{ background: "#059669", color: "#fff", padding: "12px 16px", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                          <Trophy size={16} /> {group.groupName} 순위
+                        </div>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                            <thead>
+                              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                                {["순위","팀명","승","패",...(leagueWithScore?["득점","실점","득실차"]:[])].map(h => (
+                                  <th key={h} style={{ padding: "8px", fontWeight: 700, color: "#64748b", textAlign: "center" }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {getLeagueStandings(group).map((ts, i) => (
+                                <tr key={ts.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#94a3b8" }}>{i + 1}</td>
+                                  <td style={{ padding: "10px 8px", fontWeight: 600, color: "#1e293b" }}>{ts.members.length > 0 ? ts.members.join(" & ") : ts.name}</td>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{ts.wins}</td>
+                                  <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{ts.losses}</td>
+                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{ts.pointsFor}</td>}
+                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{ts.pointsAgainst}</td>}
+                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{ts.pointDiff > 0 ? `+${ts.pointDiff}` : ts.pointDiff}</td>}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div style={{ padding: 16, background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
+                          {group.rounds.map((round, rIdx) => (
+                            <div key={rIdx} style={{ marginBottom: 20 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>라운드 {rIdx + 1}</span>
+                                <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                {round.map((match, mIdx) => {
+                                  const isBye = String(match.teamA.id).startsWith("bye") || String(match.teamB.id).startsWith("bye") || match.teamA.name.includes("휴식") || match.teamB.name.includes("휴식");
+                                  if (isBye) {
+                                    const pt = match.teamA.name.includes("휴식") || String(match.teamA.id).startsWith("bye") ? match.teamB : match.teamA;
+                                    return (
+                                      <div key={mIdx} style={{ border: "2px dashed #e2e8f0", borderRadius: 12, padding: "10px 14px", textAlign: "center", color: "#94a3b8", fontSize: 12 }}>
+                                        ☕ {pt.members.length > 0 ? pt.members.join(" & ") : pt.name} 팀 휴식
+                                      </div>
+                                    );
+                                  }
+                                  return <MatchCard key={mIdx} match={match} isInteractive={!leagueWithScore} onWinner={(tk) => handleSetWinner(rIdx, mIdx, tk, gIdx)} onScore={(k, v) => handleScoreChange(rIdx, mIdx, k, v, gIdx)} leagueWithScore={leagueWithScore} />;
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* 레슨 매치 리스트 */}
+                    {matchFormat === "lesson" && bracket?.length > 0 && (
+                      <div style={{ background: "#f8fafc", padding: 16, borderRadius: 16, border: "1px solid #e2e8f0" }}>
+                        {bracket[0].rounds.length === 0 && <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: "16px 0" }}>아직 배정된 매치가 없습니다.</p>}
+                        {bracket[0].rounds.map((round, rIdx) => {
+                          const match = round[0];
+                          return (
+                            <div key={rIdx} style={{ background: "#fff", borderRadius: 14, border: "1px solid #a7f3d0", marginBottom: 14, overflow: "hidden" }}>
+                              <div style={{ background: "#ecfdf5", padding: "6px 12px", borderBottom: "1px solid #a7f3d0", fontSize: 11, fontWeight: 700, color: "#059669", display: "flex", justifyContent: "space-between" }}>
+                                <span>MATCH {rIdx + 1}</span>
+                                <button onClick={() => deleteLessonMatch(rIdx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex" }}><Trash2 size={13} /></button>
+                              </div>
+                              <MatchCard match={match} isInteractive={!leagueWithScore} onWinner={(tk) => handleSetWinner(rIdx, 0, tk, 0)} onScore={(k, v) => handleScoreChange(rIdx, 0, k, v, 0)} leagueWithScore={leagueWithScore} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 토너먼트 */}
+                    {matchFormat === "tournament" && bracket?.length > 0 && bracket.map((round, rIdx) => {
+                      const isLast = rIdx === bracket.length - 1;
+                      const allWon = round.every(m => m.winner !== null);
+                      const isFinal = round.length === 1;
+                      return (
+                        <div key={rIdx}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                            <h3 style={{ fontSize: 17, fontWeight: 800 }}>{isFinal ? "결승전 (FINAL)" : `라운드 ${rIdx + 1}`}</h3>
+                            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            {round.map((match, mIdx) => (
+                              <div key={mIdx} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: isLast ? "1.5px solid #a7f3d0" : "1px solid #e2e8f0", opacity: isLast ? 1 : 0.7, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                                <div style={{ background: "#f8fafc", padding: "6px 14px", fontSize: 11, fontWeight: 700, color: "#94a3b8", display: "flex", justifyContent: "space-between" }}>
+                                  <span>MATCH {mIdx + 1}</span><span>{isFinal ? "CHAMPIONSHIP" : "DOUBLES"}</span>
+                                </div>
+                                <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                                  {["teamA", "teamB"].map((tk, ti) => {
+                                    const team = match[tk];
+                                    const isByeT = String(team.id).startsWith("bye") || team.name.includes("부전승");
+                                    const isWinner = match.winner === tk;
+                                    return (
+                                      <React.Fragment key={tk}>
+                                        {ti === 1 && <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ flex: 1, height: 1, background: "#e2e8f0" }} /><span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>VS</span><div style={{ flex: 1, height: 1, background: "#e2e8f0" }} /></div>}
+                                        <div onClick={() => { if (isLast && !isByeT) handleSetWinner(rIdx, mIdx, tk); }}
+                                          style={{ padding: "10px 12px", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isLast && !isByeT ? "pointer" : "default", transition: "all 0.2s",
+                                            background: isWinner ? "#d1fae5" : "#f8fafc", border: isWinner ? "2px solid #6ee7b7" : "1.5px solid #e2e8f0", opacity: isByeT ? 0.5 : 1 }}>
+                                          <span style={{ fontWeight: 600, color: isWinner ? "#064e3b" : "#374151" }}>{team.members.length > 0 ? team.members.join(" & ") : team.name}</span>
+                                          {isWinner && <span style={{ fontSize: 10, background: "#059669", color: "#fff", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>WINNER</span>}
+                                        </div>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {isLast && allWon && (
+                            <div style={{ marginTop: 20 }}>
+                              {isFinal ? (
+                                <div style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#fff", padding: "24px 16px", borderRadius: 20, textAlign: "center", boxShadow: "0 4px 20px rgba(245,158,11,0.4)" }}>
+                                  <Trophy size={48} style={{ margin: "0 auto 8px", opacity: 0.9 }} />
+                                  <p style={{ fontSize: 13, fontWeight: 700, opacity: 0.85, marginBottom: 4 }}>최종 우승팀</p>
+                                  <p style={{ fontSize: 26, fontWeight: 900 }}>{round[0][round[0].winner].members.join(" & ") || round[0][round[0].winner].name}</p>
+                                </div>
+                              ) : (
+                                <button onClick={generateNextRound} style={{ ...primaryBtnStyle, width: "100%", padding: "14px 0", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, fontSize: 15 }}>
+                                  다음 라운드 진행 <ChevronRight size={18} />
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
+
+                    {(!bracket || bracket.length === 0) && (
+                      <div style={{ textAlign: "center", padding: "40px 0", background: "#fff", borderRadius: 16, border: "2px dashed #e2e8f0", color: "#94a3b8" }}>데이터가 없습니다.</div>
+                    )}
+
+                    <button onClick={() => setView("input")} style={{ width: "100%", border: "2px solid #e2e8f0", background: "transparent", color: "#64748b", padding: "12px 0", borderRadius: 12, fontWeight: 700, cursor: "pointer", marginTop: 8, fontSize: 14 }}>
+                      처음으로 (명단 수정)
+                    </button>
                   </div>
                 )}
+              </main>
 
-                {/* 토너먼트 */}
-                {matchFormat==='tournament' && bracket&&bracket.length>0 && bracket.map((round,rIdx)=>{
-                  const isLast=rIdx===bracket.length-1, allWon=round.every(m=>m.winner!==null), isFinal=round.length===1;
-                  return (
-                    <div key={rIdx}>
-                      <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:13}}>
-                        <h3 style={{fontSize:16,fontWeight:800}}>{isFinal?'결승전 (FINAL)':`라운드 ${rIdx+1}`}</h3>
-                        <div style={{flex:1,height:1,background:'#e2e8f0'}}/>
-                      </div>
-                      <div style={{display:'flex',flexDirection:'column',gap:13}}>
-                        {round.map((match,mIdx)=>(
-                          <div key={mIdx} style={{background:'#fff',borderRadius:15,overflow:'hidden',border:isLast?'1.5px solid #a7f3d0':'1px solid #e2e8f0',opacity:isLast?1:0.72,boxShadow:'0 2px 6px rgba(0,0,0,0.05)'}}>
-                            <div style={{background:'#f8fafc',padding:'5px 13px',fontSize:10,fontWeight:700,color:'#94a3b8',display:'flex',justifyContent:'space-between'}}>
-                              <span>MATCH {mIdx+1}</span><span>{isFinal?'CHAMPIONSHIP':'DOUBLES'}</span>
-                            </div>
-                            <div style={{padding:13,display:'flex',flexDirection:'column',gap:7}}>
-                              {['teamA','teamB'].map((tk,ti)=>{
-                                const team=match[tk], isByeT=String(team.id).startsWith('bye')||team.name.includes('부전승'), isWin=match.winner===tk;
-                                return (
-                                  <Fragment key={tk}>
-                                    {ti===1 && <div style={{display:'flex',alignItems:'center',gap:5}}><div style={{flex:1,height:1,background:'#e2e8f0'}}/><span style={{fontSize:10,fontWeight:800,color:'#94a3b8'}}>VS</span><div style={{flex:1,height:1,background:'#e2e8f0'}}/></div>}
-                                    <div onClick={()=>{if(isLast&&!isByeT) handleSetWinner(rIdx,mIdx,tk);}}
-                                      style={{padding:'9px 11px',borderRadius:11,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:isLast&&!isByeT?'pointer':'default',transition:'all 0.15s',
-                                        background:isWin?'#d1fae5':'#f8fafc',border:isWin?'2px solid #6ee7b7':'1.5px solid #e2e8f0',opacity:isByeT?0.5:1}}>
-                                      <span style={{fontWeight:600,color:isWin?'#064e3b':'#374151'}}>{team.members.length>0?team.members.join(' & '):team.name}</span>
-                                      {isWin && <span style={{fontSize:9,background:'#059669',color:'#fff',padding:'2px 8px',borderRadius:999,fontWeight:700}}>WINNER</span>}
-                                    </div>
-                                  </Fragment>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {isLast && allWon && (
-                        <div style={{marginTop:18}}>
-                          {isFinal ? (
-                            <div style={{background:'linear-gradient(135deg,#f59e0b,#d97706)',color:'#fff',padding:'22px 14px',borderRadius:19,textAlign:'center',boxShadow:'0 4px 20px rgba(245,158,11,0.35)'}}>
-                              <ITrophy size={46} style={{margin:'0 auto 7px',display:'block',opacity:0.9}}/>
-                              <p style={{fontSize:12,fontWeight:700,opacity:0.85,marginBottom:4}}>최종 우승팀</p>
-                              <p style={{fontSize:24,fontWeight:900}}>{round[0][round[0].winner].members.join(' & ')||round[0][round[0].winner].name}</p>
-                            </div>
-                          ) : (
-                            <button onClick={generateNextRound} style={{...S.primary,width:'100%',padding:'13px 0',display:'flex',justifyContent:'center',alignItems:'center',gap:7,fontSize:15,borderRadius:14}}>
-                              다음 라운드 진행 <IChevron size={17}/>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {(!bracket||!bracket.length) && (
-                  <div style={{textAlign:'center',padding:'38px 0',background:'#fff',borderRadius:15,border:'2px dashed #e2e8f0',color:'#94a3b8'}}>데이터가 없습니다.</div>
-                )}
-
-                <button onClick={()=>setView('input')} style={{width:'100%',border:'2px solid #e2e8f0',background:'transparent',color:'#64748b',padding:'11px 0',borderRadius:12,fontWeight:700,cursor:'pointer',marginTop:6,fontSize:14}}>
-                  처음으로 (명단 수정)
-                </button>
-              </div>
-            )}
-          </main>
-
-          <footer style={{maxWidth:520,margin:'22px auto 0',padding:'0 14px'}}>
-            <div style={{background:'#ecfdf5',border:'1px solid #a7f3d0',borderRadius:13,padding:'11px 15px',display:'flex',gap:9}}>
-              <div style={{background:'#059669',color:'#fff',padding:3,borderRadius:6,alignSelf:'flex-start',marginTop:2,display:'flex'}}><ILayout size={11}/></div>
-              <div>
-                <h4 style={{fontSize:12,fontWeight:700,color:'#064e3b'}}>민턴헬퍼 Tip</h4>
-                <p style={{fontSize:11,color:'#065f46',marginTop:3,lineHeight:1.6,display:'flex',alignItems:'center',gap:4}}>
-                  <IHdd size={10}/> 데이터는 브라우저 Local Storage에 저장됩니다. 같은 기기 · 같은 브라우저로 접속하면 유지됩니다.
-                </p>
-              </div>
+              {/* Footer */}
+              <footer style={{ maxWidth: 480, margin: "24px auto 0", padding: "0 16px" }}>
+                <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: 14, padding: "12px 16px", display: "flex", gap: 10 }}>
+                  <div style={{ background: "#059669", color: "#fff", padding: 4, borderRadius: 6, alignSelf: "flex-start", marginTop: 2 }}><Layout size={12} /></div>
+                  <div>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: "#064e3b", margin: 0 }}>민턴헬퍼 Tip</h4>
+                    <p style={{ fontSize: 11, color: "#065f46", margin: "4px 0 0", lineHeight: 1.6, display: "flex", alignItems: "center", gap: 4 }}>
+                      <HardDrive size={11} /> 이 환경에서는 세션 내 메모리에 저장됩니다. 페이지 새로고침 시 초기화됩니다.
+                    </p>
+                  </div>
+                </div>
+                <p style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>Created by DH Shin</p>
+              </footer>
             </div>
-            <p style={{textAlign:'center',marginTop:18,fontSize:11,color:'#94a3b8',fontWeight:500}}>Created by DH Shin</p>
-          </footer>
-        </div>
-      );
-    }
+          );
+        }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+        // MatchCard sub-component
+        function MatchCard({ match, isInteractive, onWinner, onScore, leagueWithScore }) {
+          return (
+            <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+              {["teamA", "teamB"].map((tk, ti) => {
+                const team = match[tk];
+                const isWinner = match.winner === tk;
+                return (
+                  <React.Fragment key={tk}>
+                    {ti === 1 && <div style={{ textAlign: "center", fontSize: 10, fontWeight: 800, color: "#94a3b8", padding: "2px 0" }}>VS</div>}
+                    <div onClick={() => { if (isInteractive) onWinner(tk); }}
+                      style={{ padding: "8px 10px", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isInteractive ? "pointer" : "default",
+                        background: isWinner ? "#d1fae5" : "#f8fafc", border: isWinner ? "1.5px solid #6ee7b7" : "1.5px solid #e2e8f0", transition: "all 0.2s" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: isWinner ? "#064e3b" : "#374151" }}>{team.members.length > 0 ? team.members.join(" & ") : team.name}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {isWinner && <span style={{ fontSize: 9, background: "#059669", color: "#fff", padding: "2px 7px", borderRadius: 999, fontWeight: 700 }}>WIN</span>}
+                        {leagueWithScore && (
+                          <input type="number" value={match[tk === "teamA" ? "scoreA" : "scoreB"] !== undefined ? match[tk === "teamA" ? "scoreA" : "scoreB"] : ""}
+                            onChange={(e) => { e.stopPropagation(); onScore(tk === "teamA" ? "scoreA" : "scoreB", e.target.value); }}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="0" style={{ width: 44, textAlign: "center", border: "1.5px solid #d1d5db", borderRadius: 6, padding: "4px 0", fontSize: 13, fontWeight: 700, outline: "none" }} />
+                        )}
+                      </div>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          );
+        }
+
+        // Shared styles
+        const cardStyle = { background: "#fff", padding: 20, borderRadius: 16, border: "1px solid #e2e8f0", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" };
+        const primaryBtnStyle = { background: "#059669", color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14, transition: "opacity 0.2s" };
+        const darkBtnStyle = { background: "#1e293b", color: "#fff", border: "none", borderRadius: 14, padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 14 };
+        const smallBtnStyle = { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: "#374151" };
+        const selectStyle = { flex: 1, border: "1.5px solid #d1d5db", borderRadius: 10, padding: "8px 10px", fontSize: 13, fontWeight: 500, color: "#374151", background: "#fff", outline: "none" };
+        const iconBtnStyle = { background: "transparent", border: "none", color: "#fff", cursor: "pointer", padding: 6, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center" };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
