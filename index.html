@@ -97,16 +97,21 @@
           const [bracket, setBracket] = useState(null);
           const [view, setView] = useState("input");
           const [draftTeam, setDraftTeam] = useState([]);
-          const [matchFormat, setMatchFormat] = useState("tournament");
-          const [leagueWithScore, setLeagueWithScore] = useState(false);
+          const [matchFormat, setMatchFormat] = useState("tournament"); // 'tournament', 'league', 'lesson'
+          const [useScore, setUseScore] = useState(true); // 통일된 점수 사용 여부 (기본값 True)
           const [numGroups, setNumGroups] = useState(1);
           const [groupAssignMode, setGroupAssignMode] = useState("random");
           const [manualAssignments, setManualAssignments] = useState({});
+          
+          // 코치 레슨 모드 전용 상태
           const [isCoachMode, setIsCoachMode] = useState(false);
           const [coachName, setCoachName] = useState("");
+          
+          // 코치 레슨 수동 매치 생성용 상태
           const [lessonPartner, setLessonPartner] = useState("");
           const [lessonOpp1, setLessonOpp1] = useState("");
           const [lessonOpp2, setLessonOpp2] = useState("");
+
           const [error, setError] = useState(null);
           const [success, setSuccess] = useState(null);
           const [isSaving, setIsSaving] = useState(false);
@@ -122,12 +127,16 @@
               if (data.teams) setTeams(data.teams);
               if (data.draftTeam) setDraftTeam(data.draftTeam);
               if (data.matchFormat) setMatchFormat(data.matchFormat);
-              if (data.leagueWithScore !== undefined) setLeagueWithScore(data.leagueWithScore);
+              
+              if (data.useScore !== undefined) setUseScore(data.useScore);
+              else if (data.leagueWithScore !== undefined) setUseScore(data.leagueWithScore);
+              
               if (data.numGroups !== undefined) setNumGroups(data.numGroups);
               if (data.groupAssignMode) setGroupAssignMode(data.groupAssignMode);
               if (data.manualAssignments) setManualAssignments(data.manualAssignments);
               if (data.isCoachMode !== undefined) setIsCoachMode(data.isCoachMode);
               if (data.coachName) setCoachName(data.coachName);
+              
               let lb = data.bracket;
               if (data.matchFormat === "league" && lb && lb.length > 0 && Array.isArray(lb[0])) {
                 lb = [{ groupName: "단일 풀리그", rounds: lb, teams: data.teams }];
@@ -145,7 +154,7 @@
               try {
                 storage.setItem(STORAGE_KEY, JSON.stringify({
                   participants, teams, bracket, draftTeam,
-                  matchFormat, leagueWithScore, numGroups,
+                  matchFormat, useScore, numGroups,
                   groupAssignMode, manualAssignments,
                   isCoachMode, coachName,
                   timestamp: new Date().toISOString(),
@@ -167,12 +176,16 @@
                 if (data.teams) setTeams(data.teams);
                 if (data.draftTeam) setDraftTeam(data.draftTeam);
                 if (data.matchFormat) setMatchFormat(data.matchFormat);
-                if (data.leagueWithScore !== undefined) setLeagueWithScore(data.leagueWithScore);
+                
+                if (data.useScore !== undefined) setUseScore(data.useScore);
+                else if (data.leagueWithScore !== undefined) setUseScore(data.leagueWithScore);
+
                 if (data.numGroups !== undefined) setNumGroups(data.numGroups);
                 if (data.groupAssignMode) setGroupAssignMode(data.groupAssignMode);
                 if (data.manualAssignments) setManualAssignments(data.manualAssignments);
                 if (data.isCoachMode !== undefined) setIsCoachMode(data.isCoachMode);
                 if (data.coachName) setCoachName(data.coachName);
+                
                 let lb = data.bracket;
                 if (data.matchFormat === "league" && lb && lb.length > 0 && Array.isArray(lb[0])) {
                   lb = [{ groupName: "단일 풀리그", rounds: lb, teams: data.teams }];
@@ -399,18 +412,18 @@
                 const proc = (members, isWin, pf, pa) => members.forEach(m => {
                   if (!stats[m]) return;
                   if (isWin) stats[m].wins++; else stats[m].losses++;
-                  if (leagueWithScore) { stats[m].pointsFor += pf; stats[m].pointsAgainst += pa; }
+                  if (useScore) { stats[m].pointsFor += pf; stats[m].pointsAgainst += pa; }
                 });
                 if (match.winner === "teamA") { proc(match.teamA.members, true, sA, sB); proc(match.teamB.members, false, sB, sA); }
                 else { proc(match.teamA.members, false, sA, sB); proc(match.teamB.members, true, sB, sA); }
               }
             }));
-            if (leagueWithScore) Object.values(stats).forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
+            if (useScore) Object.values(stats).forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
             return Object.values(stats).sort((a, b) => {
               if (a.isCoach && !b.isCoach) return -1;
               if (!a.isCoach && b.isCoach) return 1;
               if (b.wins !== a.wins) return b.wins - a.wins;
-              if (leagueWithScore) { if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff; if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor; }
+              if (useScore) { if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff; if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor; }
               return a.scheduled - b.scheduled;
             });
           };
@@ -424,14 +437,14 @@
               if (!isBye && match.winner) {
                 const wId = match[match.winner].id, lId = match.winner === "teamA" ? match.teamB.id : match.teamA.id;
                 const sA = parseInt(match.scoreA) || 0, sB = parseInt(match.scoreB) || 0;
-                if (stats[wId]) { stats[wId].wins++; stats[wId].played++; if (leagueWithScore) { stats[wId].pointsFor += match.winner === "teamA" ? sA : sB; stats[wId].pointsAgainst += match.winner === "teamA" ? sB : sA; } }
-                if (stats[lId]) { stats[lId].losses++; stats[lId].played++; if (leagueWithScore) { stats[lId].pointsFor += match.winner === "teamA" ? sB : sA; stats[lId].pointsAgainst += match.winner === "teamA" ? sA : sB; } }
+                if (stats[wId]) { stats[wId].wins++; stats[wId].played++; if (useScore) { stats[wId].pointsFor += match.winner === "teamA" ? sA : sB; stats[wId].pointsAgainst += match.winner === "teamA" ? sB : sA; } }
+                if (stats[lId]) { stats[lId].losses++; stats[lId].played++; if (useScore) { stats[lId].pointsFor += match.winner === "teamA" ? sB : sA; stats[lId].pointsAgainst += match.winner === "teamA" ? sA : sB; } }
               }
             }));
-            if (leagueWithScore) Object.values(stats).forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
+            if (useScore) Object.values(stats).forEach(s => { s.pointDiff = s.pointsFor - s.pointsAgainst; });
             return Object.values(stats).sort((a, b) => {
               if (b.wins !== a.wins) return b.wins - a.wins;
-              if (leagueWithScore) { if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff; return b.pointsFor - a.pointsFor; }
+              if (useScore) { if (b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff; return b.pointsFor - a.pointsFor; }
               return a.losses - b.losses;
             });
           };
@@ -555,8 +568,8 @@
                     </div>
                     <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 16 }}>
                       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}>
-                        <input type="checkbox" checked={leagueWithScore} onChange={e => setLeagueWithScore(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#059669" }} />
-                        레슨 점수 기록 (득실차 반영)
+                        <input type="checkbox" checked={useScore} onChange={e => setUseScore(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#059669" }} />
+                        매치 점수 기록 (득실차 반영)
                       </label>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                         <button onClick={startManualLesson} style={{ ...darkBtnStyle, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 14 }}>
@@ -635,8 +648,8 @@
                     {/* 리그 옵션 */}
                     <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 20, marginTop: 8, display: "flex", flexDirection: "column", gap: 14 }}>
                       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                        <input type="checkbox" checked={leagueWithScore} onChange={e => setLeagueWithScore(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#059669" }} />
-                        리그전 점수 기록 (득실차 반영)
+                        <input type="checkbox" checked={useScore} onChange={e => setUseScore(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#059669" }} />
+                        매치 점수 기록 (점수 입력 시 자동 승패 결정)
                       </label>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 600 }}>
                         <span style={{ whiteSpace: "nowrap" }}>리그 조 개수:</span>
@@ -717,13 +730,14 @@
                 {/* ===== 4. 대진표 ===== */}
                 {view === "bracket" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                       <h2 style={{ fontSize: 20, fontWeight: 800 }}>
                         {matchFormat === "tournament" ? "대진표 (토너먼트)" : matchFormat === "lesson" ? "일정표 (코치 레슨)" : "대진표 (풀리그전)"}
                       </h2>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "#059669", background: "#d1fae5", padding: "4px 10px", borderRadius: 8 }}>
-                        <MousePointerClick size={13} /> {(matchFormat === "league" || matchFormat === "lesson") && leagueWithScore ? "점수 입력" : "승자 클릭"}
-                      </div>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#059669", background: "#d1fae5", padding: "6px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid #6ee7b7" }}>
+                        <input type="checkbox" checked={useScore} onChange={e => setUseScore(e.target.checked)} style={{ accentColor: "#059669", width: 14, height: 14 }} />
+                        점수 입력 켜기
+                      </label>
                     </div>
 
                     {/* 레슨 현황판 */}
@@ -736,7 +750,7 @@
                           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                             <thead>
                               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                                {["순위","이름","배정","승","패",...(leagueWithScore?["득점","실점","득실차"]:[])].map(h => (
+                                {["순위","이름","배정","승","패",...(useScore?["득점","실점","득실차"]:[])].map(h => (
                                   <th key={h} style={{ padding: "8px 8px", fontWeight: 700, color: "#64748b", textAlign: "center", whiteSpace: "nowrap" }}>{h}</th>
                                 ))}
                               </tr>
@@ -749,9 +763,9 @@
                                   <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 800, color: "#4f46e5", background: "#eef2ff" }}>{s.scheduled}</td>
                                   <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{s.wins}</td>
                                   <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{s.losses}</td>
-                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{s.pointsFor}</td>}
-                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{s.pointsAgainst}</td>}
-                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#4f46e5" }}>{s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}</td>}
+                                  {useScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{s.pointsFor}</td>}
+                                  {useScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{s.pointsAgainst}</td>}
+                                  {useScore && <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#4f46e5" }}>{s.pointDiff > 0 ? `+${s.pointDiff}` : s.pointDiff}</td>}
                                 </tr>
                               ))}
                             </tbody>
@@ -805,7 +819,7 @@
                           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                             <thead>
                               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                                {["순위","팀명","승","패",...(leagueWithScore?["득점","실점","득실차"]:[])].map(h => (
+                                {["순위","팀명","승","패",...(useScore?["득점","실점","득실차"]:[])].map(h => (
                                   <th key={h} style={{ padding: "8px", fontWeight: 700, color: "#64748b", textAlign: "center" }}>{h}</th>
                                 ))}
                               </tr>
@@ -817,9 +831,9 @@
                                   <td style={{ padding: "10px 8px", fontWeight: 600, color: "#1e293b" }}>{ts.members.length > 0 ? ts.members.join(" & ") : ts.name}</td>
                                   <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{ts.wins}</td>
                                   <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#dc2626" }}>{ts.losses}</td>
-                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{ts.pointsFor}</td>}
-                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{ts.pointsAgainst}</td>}
-                                  {leagueWithScore && <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{ts.pointDiff > 0 ? `+${ts.pointDiff}` : ts.pointDiff}</td>}
+                                  {useScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{ts.pointsFor}</td>}
+                                  {useScore && <td style={{ padding: "10px 8px", textAlign: "center", color: "#64748b", fontSize: 12 }}>{ts.pointsAgainst}</td>}
+                                  {useScore && <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#059669" }}>{ts.pointDiff > 0 ? `+${ts.pointDiff}` : ts.pointDiff}</td>}
                                 </tr>
                               ))}
                             </tbody>
@@ -843,7 +857,7 @@
                                       </div>
                                     );
                                   }
-                                  return <MatchCard key={mIdx} match={match} isInteractive={!leagueWithScore} onWinner={(tk) => handleSetWinner(rIdx, mIdx, tk, gIdx)} onScore={(k, v) => handleScoreChange(rIdx, mIdx, k, v, gIdx)} leagueWithScore={leagueWithScore} />;
+                                  return <MatchCard key={mIdx} match={match} isInteractive={!useScore} onWinner={(tk) => handleSetWinner(rIdx, mIdx, tk, gIdx)} onScore={(k, v) => handleScoreChange(rIdx, mIdx, k, v, gIdx)} useScore={useScore} />;
                                 })}
                               </div>
                             </div>
@@ -864,7 +878,7 @@
                                 <span>MATCH {rIdx + 1}</span>
                                 <button onClick={() => deleteLessonMatch(rIdx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex" }}><Trash2 size={13} /></button>
                               </div>
-                              <MatchCard match={match} isInteractive={!leagueWithScore} onWinner={(tk) => handleSetWinner(rIdx, 0, tk, 0)} onScore={(k, v) => handleScoreChange(rIdx, 0, k, v, 0)} leagueWithScore={leagueWithScore} />
+                              <MatchCard match={match} isInteractive={!useScore} onWinner={(tk) => handleSetWinner(rIdx, 0, tk, 0)} onScore={(k, v) => handleScoreChange(rIdx, 0, k, v, 0)} useScore={useScore} />
                             </div>
                           );
                         })}
@@ -883,31 +897,25 @@
                             <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                            {round.map((match, mIdx) => (
-                              <div key={mIdx} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: isLast ? "1.5px solid #a7f3d0" : "1px solid #e2e8f0", opacity: isLast ? 1 : 0.7, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                                <div style={{ background: "#f8fafc", padding: "6px 14px", fontSize: 11, fontWeight: 700, color: "#94a3b8", display: "flex", justifyContent: "space-between" }}>
-                                  <span>MATCH {mIdx + 1}</span><span>{isFinal ? "CHAMPIONSHIP" : "DOUBLES"}</span>
+                            {round.map((match, mIdx) => {
+                              const isByeT = String(match.teamA.id).startsWith("bye") || match.teamA.name.includes("부전승") || String(match.teamB.id).startsWith("bye") || match.teamB.name.includes("부전승");
+                              if (isByeT) {
+                                const pt = match.teamA.name.includes("부전승") || String(match.teamA.id).startsWith("bye") ? match.teamB : match.teamA;
+                                return (
+                                  <div key={mIdx} style={{ border: "2px dashed #e2e8f0", borderRadius: 12, padding: "10px 14px", textAlign: "center", color: "#94a3b8", fontSize: 12 }}>
+                                    ☕ {pt.members.length > 0 ? pt.members.join(" & ") : pt.name} 팀 부전승 진출
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={mIdx} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: isLast ? "1.5px solid #a7f3d0" : "1px solid #e2e8f0", opacity: isLast ? 1 : 0.7, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                                  <div style={{ background: "#f8fafc", padding: "6px 14px", fontSize: 11, fontWeight: 700, color: "#94a3b8", display: "flex", justifyContent: "space-between" }}>
+                                    <span>MATCH {mIdx + 1}</span><span>{isFinal ? "CHAMPIONSHIP" : "DOUBLES"}</span>
+                                  </div>
+                                  <MatchCard match={match} isInteractive={isLast && !useScore} onWinner={(tk) => handleSetWinner(rIdx, mIdx, tk)} onScore={(k, v) => handleScoreChange(rIdx, mIdx, k, v)} useScore={useScore} />
                                 </div>
-                                <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                                  {["teamA", "teamB"].map((tk, ti) => {
-                                    const team = match[tk];
-                                    const isByeT = String(team.id).startsWith("bye") || team.name.includes("부전승");
-                                    const isWinner = match.winner === tk;
-                                    return (
-                                      <React.Fragment key={tk}>
-                                        {ti === 1 && <div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ flex: 1, height: 1, background: "#e2e8f0" }} /><span style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8" }}>VS</span><div style={{ flex: 1, height: 1, background: "#e2e8f0" }} /></div>}
-                                        <div onClick={() => { if (isLast && !isByeT) handleSetWinner(rIdx, mIdx, tk); }}
-                                          style={{ padding: "10px 12px", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: isLast && !isByeT ? "pointer" : "default", transition: "all 0.2s",
-                                            background: isWinner ? "#d1fae5" : "#f8fafc", border: isWinner ? "2px solid #6ee7b7" : "1.5px solid #e2e8f0", opacity: isByeT ? 0.5 : 1 }}>
-                                          <span style={{ fontWeight: 600, color: isWinner ? "#064e3b" : "#374151" }}>{team.members.length > 0 ? team.members.join(" & ") : team.name}</span>
-                                          {isWinner && <span style={{ fontSize: 10, background: "#059669", color: "#fff", padding: "2px 8px", borderRadius: 999, fontWeight: 700 }}>WINNER</span>}
-                                        </div>
-                                      </React.Fragment>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                           {isLast && allWon && (
                             <div style={{ marginTop: 20 }}>
@@ -957,7 +965,7 @@
         }
 
         // MatchCard sub-component
-        function MatchCard({ match, isInteractive, onWinner, onScore, leagueWithScore }) {
+        function MatchCard({ match, isInteractive, onWinner, onScore, useScore }) {
           return (
             <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 6 }}>
               {["teamA", "teamB"].map((tk, ti) => {
@@ -972,7 +980,7 @@
                       <span style={{ fontSize: 13, fontWeight: 600, color: isWinner ? "#064e3b" : "#374151" }}>{team.members.length > 0 ? team.members.join(" & ") : team.name}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         {isWinner && <span style={{ fontSize: 9, background: "#059669", color: "#fff", padding: "2px 7px", borderRadius: 999, fontWeight: 700 }}>WIN</span>}
-                        {leagueWithScore && (
+                        {useScore && (
                           <input type="number" value={match[tk === "teamA" ? "scoreA" : "scoreB"] !== undefined ? match[tk === "teamA" ? "scoreA" : "scoreB"] : ""}
                             onChange={(e) => { e.stopPropagation(); onScore(tk === "teamA" ? "scoreA" : "scoreB", e.target.value); }}
                             onClick={(e) => e.stopPropagation()}
